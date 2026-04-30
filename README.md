@@ -22,8 +22,11 @@ DashGeometry/
 ├── js/
 │   ├── main.js         — entry point
 │   ├── game.js         — game loop, state machine, collision (Claude Code)
+│   ├── config.js       — shared physics, world, and collision constants
 │   ├── player.js       — physics: gravity, jump, AABB (Claude Code)
-│   ├── level.js        — level data, camera scroll (Claude Code)
+│   ├── level.js        — generated Level 1, camera scroll (Claude Code)
+│   ├── levelBuilder.js — reusable level motif helpers
+│   ├── levelRules.js   — physics-derived spacing and validation rules
 │   ├── renderer.js     — canvas draw calls, parallax (Claude Code)
 │   └── input.js        — keyboard/mouse/touch handler (Copilot CLI)
 └── scripts/
@@ -55,3 +58,4 @@ The delegation uses Copilot CLI's non-interactive `-p` flag and Codex CLI's `exe
 - Elevated spikes must be fully supported by a block underneath.
 - Elevated platforms are limited to one spike at the first-level difficulty.
 - Stair platforms use 9-tile runs with 1-tile approach gaps.
+- Level 1 is generated from reusable motifs and validated when `level.js` loads.

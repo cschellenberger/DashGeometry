@@ -1,6 +1,7 @@
-export const TILE = 40;
-export const GRAVITY = 0.58;
-const JUMP_FORCE = -13.2;
+import { PLAYER_PHYSICS, TILE, WORLD } from './config.js';
+
+export { TILE };
+export const GRAVITY = PLAYER_PHYSICS.GRAVITY;
 
 export class Player {
   constructor() {
@@ -9,7 +10,7 @@ export class Player {
 
   reset() {
     this.x = 120;
-    this.y = 560 - TILE;
+    this.y = WORLD.GROUND_Y - TILE;
     this.w = TILE - 2;
     this.h = TILE - 2;
     this.vy = 0;
@@ -19,7 +20,7 @@ export class Player {
 
   jump() {
     if (this.isGrounded) {
-      this.vy = JUMP_FORCE;
+      this.vy = PLAYER_PHYSICS.JUMP_FORCE;
       this.isGrounded = false;
     }
   }

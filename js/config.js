@@ -1,0 +1,21 @@
+export const TILE = 40;
+
+export const WORLD = {
+  GROUND_Y: 560,
+  GROUND_H: 40,
+  FALL_DEATH_Y: 650,
+};
+
+export const PLAYER_PHYSICS = {
+  GRAVITY: 0.58,
+  JUMP_FORCE: -13.2,
+  SPEED_X: 3.2,
+};
+
+export const COLLISION = {
+  PLAYER_MARGIN: 8,
+  SPIKE_INSET_FRONT: 8,
+  SPIKE_INSET_BACK: 14,
+  SPIKE_INSET_TOP: 8,
+  LANDING_TOLERANCE: 2,
+};
