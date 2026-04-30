@@ -27,23 +27,31 @@ export const LEVEL_DATA = [
   { type: 'block', x: 3360, y: GROUND_Y - TILE, w: TILE,     h: TILE },
   { type: 'spike', x: 3680, y: GROUND_Y - TILE },
 
-  // --- Gentle mixed section ---
-  { type: 'block', x: 4040, y: GROUND_Y - TILE,     w: TILE,     h: TILE },
-  { type: 'block', x: 4080, y: GROUND_Y - TILE * 2, w: TILE,     h: TILE },
-  { type: 'spike', x: 4480, y: GROUND_Y - TILE },
-  { type: 'spike', x: 4760, y: GROUND_Y - TILE },
-  { type: 'spike', x: 4800, y: GROUND_Y - TILE },
+  // --- Triple-block staircase: climb to an elevated platform ---
+  { type: 'block', x: 4080, y: GROUND_Y - TILE,     w: TILE * 3, h: TILE },
+  { type: 'block', x: 4360, y: GROUND_Y - TILE * 2, w: TILE * 3, h: TILE },
+  { type: 'block', x: 4640, y: GROUND_Y - TILE * 3, w: TILE * 3, h: TILE },
 
-  // --- Final check: visible rhythm, no dense gauntlet ---
-  { type: 'block', x: 5200, y: GROUND_Y - TILE, w: TILE * 2, h: TILE },
-  { type: 'spike', x: 5560, y: GROUND_Y - TILE },
-  { type: 'spike', x: 5880, y: GROUND_Y - TILE },
+  // --- Elevated platform: familiar spike rhythm on higher ground ---
+  { type: 'block', x: 4920, y: GROUND_Y - TILE * 3, w: TILE * 6, h: TILE },
+  { type: 'spike', x: 5040, y: GROUND_Y - TILE * 4 },
+  { type: 'spike', x: 5200, y: GROUND_Y - TILE * 4 },
+
+  // --- Cascade back down to the base lane ---
+  { type: 'block', x: 5480, y: GROUND_Y - TILE * 2, w: TILE * 3, h: TILE },
+  { type: 'block', x: 5760, y: GROUND_Y - TILE,     w: TILE * 3, h: TILE },
+
+  // --- Final check: return to the original ground rhythm ---
+  { type: 'spike', x: 6200, y: GROUND_Y - TILE },
+  { type: 'spike', x: 6520, y: GROUND_Y - TILE },
+  { type: 'block', x: 6840, y: GROUND_Y - TILE, w: TILE * 2, h: TILE },
+  { type: 'spike', x: 7240, y: GROUND_Y - TILE },
 
   // --- Win marker (safe platform) ---
-  { type: 'block', x: 6320, y: GROUND_Y - TILE, w: TILE * 4, h: TILE },
+  { type: 'block', x: 7640, y: GROUND_Y - TILE, w: TILE * 4, h: TILE },
 ];
 
-export const LEVEL_LENGTH = 6800;
+export const LEVEL_LENGTH = 8120;
 
 export class Level {
   constructor() {
