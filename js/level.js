@@ -28,30 +28,30 @@ export const LEVEL_DATA = [
   { type: 'spike', x: 3680, y: GROUND_Y - TILE },
 
   // --- Triple-block staircase: climb to an elevated platform ---
-  { type: 'block', x: 4080, y: GROUND_Y - TILE,     w: TILE * 3, h: TILE },
-  { type: 'block', x: 4360, y: GROUND_Y - TILE * 2, w: TILE * 3, h: TILE },
-  { type: 'block', x: 4640, y: GROUND_Y - TILE * 3, w: TILE * 3, h: TILE },
+  { type: 'block', x: 4000, y: GROUND_Y - TILE,     w: TILE * 3, h: TILE },
+  { type: 'block', x: 4160, y: GROUND_Y - TILE * 2, w: TILE * 3, h: TILE },
+  { type: 'block', x: 4320, y: GROUND_Y - TILE * 3, w: TILE * 3, h: TILE },
 
   // --- Elevated platform: familiar spike rhythm on higher ground ---
-  { type: 'block', x: 4920, y: GROUND_Y - TILE * 3, w: TILE * 6, h: TILE },
-  { type: 'spike', x: 5040, y: GROUND_Y - TILE * 4 },
-  { type: 'spike', x: 5200, y: GROUND_Y - TILE * 4 },
+  { type: 'block', x: 4480, y: GROUND_Y - TILE * 3, w: TILE * 8, h: TILE },
+  { type: 'spike', x: 4600, y: GROUND_Y - TILE * 4 },
+  { type: 'spike', x: 4720, y: GROUND_Y - TILE * 4 },
 
   // --- Cascade back down to the base lane ---
-  { type: 'block', x: 5480, y: GROUND_Y - TILE * 2, w: TILE * 3, h: TILE },
-  { type: 'block', x: 5760, y: GROUND_Y - TILE,     w: TILE * 3, h: TILE },
+  { type: 'block', x: 4880, y: GROUND_Y - TILE * 2, w: TILE * 3, h: TILE },
+  { type: 'block', x: 5040, y: GROUND_Y - TILE,     w: TILE * 3, h: TILE },
 
   // --- Final check: return to the original ground rhythm ---
-  { type: 'spike', x: 6200, y: GROUND_Y - TILE },
-  { type: 'spike', x: 6520, y: GROUND_Y - TILE },
-  { type: 'block', x: 6840, y: GROUND_Y - TILE, w: TILE * 2, h: TILE },
-  { type: 'spike', x: 7240, y: GROUND_Y - TILE },
+  { type: 'spike', x: 5360, y: GROUND_Y - TILE },
+  { type: 'spike', x: 5680, y: GROUND_Y - TILE },
+  { type: 'block', x: 6000, y: GROUND_Y - TILE, w: TILE * 2, h: TILE },
+  { type: 'spike', x: 6400, y: GROUND_Y - TILE },
 
   // --- Win marker (safe platform) ---
-  { type: 'block', x: 7640, y: GROUND_Y - TILE, w: TILE * 4, h: TILE },
+  { type: 'block', x: 6800, y: GROUND_Y - TILE, w: TILE * 4, h: TILE },
 ];
 
-export const LEVEL_LENGTH = 8120;
+export const LEVEL_LENGTH = 7280;
 
 export class Level {
   constructor() {
