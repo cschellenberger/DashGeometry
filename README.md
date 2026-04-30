@@ -44,7 +44,7 @@ The delegation uses Copilot CLI's non-interactive `-p` flag and Codex CLI's `exe
 
 ## Physics
 
-- Gravity: 0.65 px/frame²
-- Jump force: −12.5 px/frame
-- Player speed: 5 px/frame (≈300 px/sec at 60 fps)
+- Gravity: 0.58 px/frame²
+- Jump force: −13.2 px/frame
+- Player speed: 3.2 px/frame (≈192 px/sec at 60 fps)
 - Tile size: 40 px

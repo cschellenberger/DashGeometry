@@ -1,6 +1,6 @@
 export const TILE = 40;
-export const GRAVITY = 0.65;
-const JUMP_FORCE = -12.5;
+export const GRAVITY = 0.58;
+const JUMP_FORCE = -13.2;
 
 export class Player {
   constructor() {

@@ -10,81 +10,45 @@ const GROUND_H = 40;
 export const LEVEL_DATA = [
   { type: 'ground', x: -200, y: GROUND_Y, w: 99999, h: GROUND_H },
 
-  // --- Easy section (wide gaps, single spikes) ---
-  { type: 'spike', x: 480,  y: GROUND_Y - TILE },
+  // --- Warm-up: isolated single spikes with long recovery gaps ---
   { type: 'spike', x: 640,  y: GROUND_Y - TILE },
-  { type: 'spike', x: 800,  y: GROUND_Y - TILE },
   { type: 'spike', x: 960,  y: GROUND_Y - TILE },
-  { type: 'spike', x: 1040, y: GROUND_Y - TILE },
-
-  // --- Block platforms ---
-  { type: 'block', x: 1200, y: GROUND_Y - TILE,     w: TILE, h: TILE },
   { type: 'spike', x: 1280, y: GROUND_Y - TILE },
-  { type: 'block', x: 1360, y: GROUND_Y - TILE,     w: TILE, h: TILE },
-  { type: 'block', x: 1360, y: GROUND_Y - TILE * 2, w: TILE, h: TILE },
-  { type: 'spike', x: 1440, y: GROUND_Y - TILE },
-
-  // --- Medium: double spikes ---
   { type: 'spike', x: 1600, y: GROUND_Y - TILE },
-  { type: 'spike', x: 1640, y: GROUND_Y - TILE },
-  { type: 'spike', x: 1800, y: GROUND_Y - TILE },
-  { type: 'spike', x: 1840, y: GROUND_Y - TILE },
-  { type: 'spike', x: 1880, y: GROUND_Y - TILE },
 
-  // --- Block staircase ---
-  { type: 'block', x: 2000, y: GROUND_Y - TILE,     w: TILE, h: TILE },
-  { type: 'block', x: 2040, y: GROUND_Y - TILE * 2, w: TILE, h: TILE * 2 },
-  { type: 'spike', x: 2120, y: GROUND_Y - TILE },
-  { type: 'block', x: 2200, y: GROUND_Y - TILE,     w: TILE * 2, h: TILE },
-  { type: 'spike', x: 2280, y: GROUND_Y - TILE },
-  { type: 'spike', x: 2320, y: GROUND_Y - TILE },
-
-  // --- Harder: triple spikes ---
-  { type: 'spike', x: 2480, y: GROUND_Y - TILE },
+  // --- First platform reads: low blocks with safe exits ---
+  { type: 'block', x: 1960, y: GROUND_Y - TILE, w: TILE,     h: TILE },
+  { type: 'block', x: 2240, y: GROUND_Y - TILE, w: TILE * 2, h: TILE },
   { type: 'spike', x: 2520, y: GROUND_Y - TILE },
-  { type: 'spike', x: 2560, y: GROUND_Y - TILE },
-  { type: 'spike', x: 2720, y: GROUND_Y - TILE },
-  { type: 'spike', x: 2760, y: GROUND_Y - TILE },
-  { type: 'spike', x: 2800, y: GROUND_Y - TILE },
 
-  // --- Block + spike combos ---
-  { type: 'block', x: 2960, y: GROUND_Y - TILE,     w: TILE,     h: TILE },
-  { type: 'spike', x: 3000, y: GROUND_Y - TILE * 2 },
-  { type: 'block', x: 3080, y: GROUND_Y - TILE,     w: TILE,     h: TILE },
-  { type: 'block', x: 3120, y: GROUND_Y - TILE * 2, w: TILE,     h: TILE },
-  { type: 'spike', x: 3160, y: GROUND_Y - TILE * 3 },
-
-  // --- Final gauntlet ---
-  { type: 'spike', x: 3360, y: GROUND_Y - TILE },
-  { type: 'spike', x: 3400, y: GROUND_Y - TILE },
-  { type: 'spike', x: 3440, y: GROUND_Y - TILE },
-  { type: 'spike', x: 3480, y: GROUND_Y - TILE },
-  { type: 'block', x: 3560, y: GROUND_Y - TILE,     w: TILE,     h: TILE },
-  { type: 'spike', x: 3600, y: GROUND_Y - TILE * 2 },
-  { type: 'spike', x: 3640, y: GROUND_Y - TILE },
+  // --- Intro to pairs: forgiving approach and exit space ---
+  { type: 'spike', x: 2920, y: GROUND_Y - TILE },
+  { type: 'spike', x: 2960, y: GROUND_Y - TILE },
+  { type: 'block', x: 3360, y: GROUND_Y - TILE, w: TILE,     h: TILE },
   { type: 'spike', x: 3680, y: GROUND_Y - TILE },
-  { type: 'block', x: 3760, y: GROUND_Y - TILE,     w: TILE * 2, h: TILE },
-  { type: 'spike', x: 3840, y: GROUND_Y - TILE },
-  { type: 'spike', x: 3880, y: GROUND_Y - TILE },
-  { type: 'spike', x: 3920, y: GROUND_Y - TILE },
-  { type: 'spike', x: 3960, y: GROUND_Y - TILE },
-  { type: 'spike', x: 4000, y: GROUND_Y - TILE },
-  { type: 'block', x: 4080, y: GROUND_Y - TILE,     w: TILE,     h: TILE },
+
+  // --- Gentle mixed section ---
+  { type: 'block', x: 4040, y: GROUND_Y - TILE,     w: TILE,     h: TILE },
   { type: 'block', x: 4080, y: GROUND_Y - TILE * 2, w: TILE,     h: TILE },
-  { type: 'spike', x: 4160, y: GROUND_Y - TILE },
-  { type: 'spike', x: 4200, y: GROUND_Y - TILE },
-  { type: 'spike', x: 4240, y: GROUND_Y - TILE },
+  { type: 'spike', x: 4480, y: GROUND_Y - TILE },
+  { type: 'spike', x: 4760, y: GROUND_Y - TILE },
+  { type: 'spike', x: 4800, y: GROUND_Y - TILE },
+
+  // --- Final check: visible rhythm, no dense gauntlet ---
+  { type: 'block', x: 5200, y: GROUND_Y - TILE, w: TILE * 2, h: TILE },
+  { type: 'spike', x: 5560, y: GROUND_Y - TILE },
+  { type: 'spike', x: 5880, y: GROUND_Y - TILE },
 
   // --- Win marker (safe platform) ---
-  { type: 'block', x: 4400, y: GROUND_Y - TILE,     w: TILE * 4, h: TILE },
+  { type: 'block', x: 6320, y: GROUND_Y - TILE, w: TILE * 4, h: TILE },
 ];
 
-export const LEVEL_LENGTH = 4800;
+export const LEVEL_LENGTH = 6800;
 
 export class Level {
   constructor() {
     this.cameraX = 0;
-    this.speed = 5;
+    this.speed = 3.2;
   }
 
   getVisible() {

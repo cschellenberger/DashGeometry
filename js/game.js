@@ -62,12 +62,16 @@ export class Game {
       const oh = o.h ?? TILE;
 
       if (o.type === 'spike') {
-        // Shrink player hitbox slightly for fairness
-        const margin = 6;
+        // Use a forgiving spike box so the rear edge does not punish clean clears.
+        const margin = 8;
+        const spikeInsetFront = 8;
+        const spikeInsetBack = 14;
+        const spikeInsetTop = 8;
         if (aabb(
           this.player.x + margin, this.player.y + margin,
           this.player.w - margin * 2, this.player.h - margin * 2,
-          ox, o.y, TILE, TILE
+          ox + spikeInsetFront, o.y + spikeInsetTop,
+          TILE - spikeInsetFront - spikeInsetBack, TILE - spikeInsetTop
         )) {
           this.state = STATE.DEAD;
           return;
