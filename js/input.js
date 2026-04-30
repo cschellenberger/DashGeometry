@@ -1,35 +1,74 @@
 export default class InputHandler {
   constructor() {
-    this.jumpRequested = false;
+    this.jumpStarted = false;
+    this.jumpHeld = false;
 
     this.handleKeyDown = (event) => {
       if (event.code === 'Space' || event.code === 'ArrowUp') {
-        this.jumpRequested = true;
+        if (!event.repeat && !this.jumpHeld) {
+          this.jumpStarted = true;
+        }
+        this.jumpHeld = true;
+        event.preventDefault();
+      }
+    };
+
+    this.handleKeyUp = (event) => {
+      if (event.code === 'Space' || event.code === 'ArrowUp') {
+        this.jumpHeld = false;
+        event.preventDefault();
       }
     };
 
     this.handleMouseDown = () => {
-      this.jumpRequested = true;
+      if (!this.jumpHeld) {
+        this.jumpStarted = true;
+      }
+      this.jumpHeld = true;
     };
 
-    this.handleTouchStart = () => {
-      this.jumpRequested = true;
+    this.handleMouseUp = () => {
+      this.jumpHeld = false;
+    };
+
+    this.handleTouchStart = (event) => {
+      if (!this.jumpHeld) {
+        this.jumpStarted = true;
+      }
+      this.jumpHeld = true;
+      event.preventDefault();
+    };
+
+    this.handleTouchEnd = () => {
+      this.jumpHeld = false;
     };
 
     document.addEventListener('keydown', this.handleKeyDown);
+    document.addEventListener('keyup', this.handleKeyUp);
     document.addEventListener('mousedown', this.handleMouseDown);
+    document.addEventListener('mouseup', this.handleMouseUp);
     document.addEventListener('touchstart', this.handleTouchStart);
+    document.addEventListener('touchend', this.handleTouchEnd);
+    document.addEventListener('touchcancel', this.handleTouchEnd);
   }
 
-  consumeJump() {
-    const shouldJump = this.jumpRequested;
-    this.jumpRequested = false;
+  consumeJumpStart() {
+    const shouldJump = this.jumpStarted;
+    this.jumpStarted = false;
     return shouldJump;
+  }
+
+  isJumpHeld() {
+    return this.jumpHeld;
   }
 
   destroy() {
     document.removeEventListener('keydown', this.handleKeyDown);
+    document.removeEventListener('keyup', this.handleKeyUp);
     document.removeEventListener('mousedown', this.handleMouseDown);
+    document.removeEventListener('mouseup', this.handleMouseUp);
     document.removeEventListener('touchstart', this.handleTouchStart);
+    document.removeEventListener('touchend', this.handleTouchEnd);
+    document.removeEventListener('touchcancel', this.handleTouchEnd);
   }
 }

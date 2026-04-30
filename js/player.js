@@ -11,6 +11,7 @@ export class Player {
   reset() {
     this.x = 120;
     this.y = WORLD.GROUND_Y - TILE;
+    this.prevY = this.y;
     this.w = TILE - 2;
     this.h = TILE - 2;
     this.vy = 0;
@@ -22,17 +23,22 @@ export class Player {
     if (this.isGrounded) {
       this.vy = PLAYER_PHYSICS.JUMP_FORCE;
       this.isGrounded = false;
+      return true;
     }
+
+    return false;
   }
 
-  update() {
-    this.vy += GRAVITY;
-    this.y += this.vy;
-    this.angle += this.isGrounded ? 0 : 4;
+  update(frameScale = 1) {
+    this.prevY = this.y;
+    this.vy += GRAVITY * frameScale;
+    this.y += this.vy * frameScale;
+    this.angle += this.isGrounded ? 0 : PLAYER_PHYSICS.ROTATION_SPEED * frameScale;
   }
 
   get left()   { return this.x; }
   get right()  { return this.x + this.w; }
   get top()    { return this.y; }
   get bottom() { return this.y + this.h; }
+  get prevBottom() { return this.prevY + this.h; }
 }

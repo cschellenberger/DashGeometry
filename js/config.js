@@ -10,6 +10,7 @@ export const PLAYER_PHYSICS = {
   GRAVITY: 0.58,
   JUMP_FORCE: -13.2,
   SPEED_X: 3.2,
+  ROTATION_SPEED: 4,
 };
 
 export const COLLISION = {
@@ -18,4 +19,10 @@ export const COLLISION = {
   SPIKE_INSET_BACK: 14,
   SPIKE_INSET_TOP: 8,
   LANDING_TOLERANCE: 2,
+};
+
+export const GAMEPLAY = {
+  TARGET_FRAME_MS: 1000 / 60,
+  MAX_FRAME_SCALE: 2,
+  JUMP_BUFFER_FRAMES: 6,
 };

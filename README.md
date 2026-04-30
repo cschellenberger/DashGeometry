@@ -11,6 +11,8 @@ Open `index.html` in any modern browser — no server required.
 | Jump   | `Space`, `↑`, Click, or Tap |
 | Restart | Same as above after death |
 
+Hold jump input to automatically jump again on landing.
+
 Avoid spikes and reach the end of the level.
 
 ## File Structure
@@ -50,6 +52,7 @@ The delegation uses Copilot CLI's non-interactive `-p` flag and Codex CLI's `exe
 - Gravity: 0.58 px/frame²
 - Jump force: −13.2 px/frame
 - Player speed: 3.2 px/frame (≈192 px/sec at 60 fps)
+- Jump buffering: 6 frames
 - Tile size: 40 px
 
 ## Level Authoring Rules
@@ -59,3 +62,5 @@ The delegation uses Copilot CLI's non-interactive `-p` flag and Codex CLI's `exe
 - Elevated platforms are limited to one spike at the first-level difficulty.
 - Stair platforms use 9-tile runs with 1-tile approach gaps.
 - Level 1 is generated from reusable motifs and validated when `level.js` loads.
+- Movement is frame-scaled against a 60 FPS target so timing is more consistent across devices.
+- Spike collision uses an inset triangle hitbox rather than a rectangular proxy.

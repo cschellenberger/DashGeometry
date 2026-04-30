@@ -1,4 +1,4 @@
-import { COLLISION, TILE, WORLD } from './config.js';
+import { COLLISION, GAMEPLAY, TILE, WORLD } from './config.js';
 import { Player } from './player.js';
 import { Level, LEVEL_LENGTH } from './level.js';
 import { Renderer } from './renderer.js';
@@ -10,6 +10,45 @@ function aabb(ax, ay, aw, ah, bx, by, bw, bh) {
   return ax < bx + bw && ax + aw > bx && ay < by + bh && ay + ah > by;
 }
 
+function sign(p1, p2, p3) {
+  return (p1.x - p3.x) * (p2.y - p3.y) - (p2.x - p3.x) * (p1.y - p3.y);
+}
+
+function pointInTriangle(point, a, b, c) {
+  const d1 = sign(point, a, b);
+  const d2 = sign(point, b, c);
+  const d3 = sign(point, c, a);
+  const hasNeg = d1 < 0 || d2 < 0 || d3 < 0;
+  const hasPos = d1 > 0 || d2 > 0 || d3 > 0;
+  return !(hasNeg && hasPos);
+}
+
+function lineIntersectsLine(a, b, c, d) {
+  const denominator = (d.y - c.y) * (b.x - a.x) - (d.x - c.x) * (b.y - a.y);
+  if (denominator === 0) return false;
+
+  const ua = ((d.x - c.x) * (a.y - c.y) - (d.y - c.y) * (a.x - c.x)) / denominator;
+  const ub = ((b.x - a.x) * (a.y - c.y) - (b.y - a.y) * (a.x - c.x)) / denominator;
+  return ua >= 0 && ua <= 1 && ub >= 0 && ub <= 1;
+}
+
+function rectIntersectsTriangle(rect, triangle) {
+  const rectPoints = [
+    { x: rect.x, y: rect.y },
+    { x: rect.x + rect.w, y: rect.y },
+    { x: rect.x + rect.w, y: rect.y + rect.h },
+    { x: rect.x, y: rect.y + rect.h },
+  ];
+  const rectEdges = rectPoints.map((point, i) => [point, rectPoints[(i + 1) % rectPoints.length]]);
+  const triangleEdges = triangle.map((point, i) => [point, triangle[(i + 1) % triangle.length]]);
+
+  return (
+    rectPoints.some(point => pointInTriangle(point, ...triangle)) ||
+    triangle.some(point => aabb(point.x, point.y, 1, 1, rect.x, rect.y, rect.w, rect.h)) ||
+    rectEdges.some(([a, b]) => triangleEdges.some(([c, d]) => lineIntersectsLine(a, b, c, d)))
+  );
+}
+
 export class Game {
   constructor(canvas) {
     this.renderer = new Renderer(canvas);
@@ -18,6 +57,7 @@ export class Game {
     this.level    = new Level();
     this.state    = STATE.MENU;
     this.lastTime = 0;
+    this.jumpBufferFrames = 0;
     this._loop    = this._loop.bind(this);
   }
 
@@ -27,31 +67,58 @@ export class Game {
 
   _loop(ts) {
     requestAnimationFrame(this._loop);
+    const frameScale = this._frameScale(ts);
+    const jumpStarted = this.input.consumeJumpStart();
 
-    if (this.input.consumeJump()) {
+    if (jumpStarted) {
       if (this.state === STATE.MENU || this.state === STATE.DEAD || this.state === STATE.WIN) {
         this._restart();
-      } else if (this.state === STATE.PLAYING) {
-        this.player.jump();
+      } else {
+        this._queueJump();
       }
     }
 
     if (this.state === STATE.PLAYING) {
-      this._update();
+      this._update(frameScale);
     }
 
     this._render();
+  }
+
+  _frameScale(ts) {
+    if (!this.lastTime) {
+      this.lastTime = ts;
+      return 1;
+    }
+
+    const elapsed = ts - this.lastTime;
+    this.lastTime = ts;
+    return Math.min(GAMEPLAY.MAX_FRAME_SCALE, Math.max(0, elapsed / GAMEPLAY.TARGET_FRAME_MS));
+  }
+
+  _queueJump() {
+    this.jumpBufferFrames = GAMEPLAY.JUMP_BUFFER_FRAMES;
   }
 
   _restart() {
     this.player = new Player();
     this.level  = new Level();
     this.state  = STATE.PLAYING;
+    this.jumpBufferFrames = this.input.isJumpHeld() ? GAMEPLAY.JUMP_BUFFER_FRAMES : 0;
+    this.lastTime = 0;
   }
 
-  _update() {
-    this.level.update();
-    this.player.update();
+  _update(frameScale) {
+    if (this.input.isJumpHeld()) {
+      this._queueJump();
+    }
+
+    if (this.jumpBufferFrames > 0 && this.player.jump()) {
+      this.jumpBufferFrames = 0;
+    }
+
+    this.level.update(frameScale);
+    this.player.update(frameScale);
 
     const obs = this.level.getVisible();
     this.player.isGrounded = false;
@@ -62,16 +129,19 @@ export class Game {
       const oh = o.h ?? TILE;
 
       if (o.type === 'spike') {
-        if (aabb(
-          this.player.x + COLLISION.PLAYER_MARGIN,
-          this.player.y + COLLISION.PLAYER_MARGIN,
-          this.player.w - COLLISION.PLAYER_MARGIN * 2,
-          this.player.h - COLLISION.PLAYER_MARGIN * 2,
-          ox + COLLISION.SPIKE_INSET_FRONT,
-          o.y + COLLISION.SPIKE_INSET_TOP,
-          TILE - COLLISION.SPIKE_INSET_FRONT - COLLISION.SPIKE_INSET_BACK,
-          TILE - COLLISION.SPIKE_INSET_TOP
-        )) {
+        const playerBox = {
+          x: this.player.x + COLLISION.PLAYER_MARGIN,
+          y: this.player.y + COLLISION.PLAYER_MARGIN,
+          w: this.player.w - COLLISION.PLAYER_MARGIN * 2,
+          h: this.player.h - COLLISION.PLAYER_MARGIN * 2,
+        };
+        const spikeTriangle = [
+          { x: ox + COLLISION.SPIKE_INSET_FRONT, y: o.y + TILE },
+          { x: ox + TILE / 2, y: o.y + COLLISION.SPIKE_INSET_TOP },
+          { x: ox + TILE - COLLISION.SPIKE_INSET_BACK, y: o.y + TILE },
+        ];
+
+        if (rectIntersectsTriangle(playerBox, spikeTriangle)) {
           this.state = STATE.DEAD;
           return;
         }
@@ -81,7 +151,7 @@ export class Game {
       // ground / block — AABB
       if (!aabb(this.player.x, this.player.y, this.player.w, this.player.h, ox, o.y, ow, oh)) continue;
 
-      const playerPrevBottom = this.player.y + this.player.h - this.player.vy;
+      const playerPrevBottom = this.player.prevBottom;
       const landingFromTop   = playerPrevBottom <= o.y + COLLISION.LANDING_TOLERANCE && this.player.vy >= 0;
 
       if (landingFromTop) {
@@ -105,6 +175,8 @@ export class Game {
     if (this.level.complete) {
       this.state = STATE.WIN;
     }
+
+    this.jumpBufferFrames = Math.max(0, this.jumpBufferFrames - frameScale);
   }
 
   _render() {
