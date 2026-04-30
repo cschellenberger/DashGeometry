@@ -48,3 +48,10 @@ The delegation uses Copilot CLI's non-interactive `-p` flag and Codex CLI's `exe
 - Jump force: −13.2 px/frame
 - Player speed: 3.2 px/frame (≈192 px/sec at 60 fps)
 - Tile size: 40 px
+
+## Level Authoring Rules
+
+- Same-lane spikes must be at least 4 tiles apart.
+- Elevated spikes must be fully supported by a block underneath.
+- Elevated platforms are limited to one spike at the first-level difficulty.
+- Stair platforms use 9-tile runs with 1-tile approach gaps.

@@ -3,6 +3,13 @@ import { TILE } from './player.js';
 const GROUND_Y = 560;
 const GROUND_H = 40;
 
+export const LEVEL_RULES = {
+  MIN_SPIKE_GAP_X: TILE * 4,
+  STAIR_PLATFORM_W: TILE * 9,
+  STAIR_STEP_GAP_X: TILE,
+  MAX_ELEVATED_SPIKES_PER_PLATFORM: 1,
+};
+
 // Each entry: { type: 'ground'|'block'|'spike', x, y, w?, h? }
 // Spikes are triangles with base TILE wide, height TILE tall, tip pointing up.
 // Ground is a full-width floor strip.
@@ -21,37 +28,84 @@ export const LEVEL_DATA = [
   { type: 'block', x: 2240, y: GROUND_Y - TILE, w: TILE * 2, h: TILE },
   { type: 'spike', x: 2520, y: GROUND_Y - TILE },
 
-  // --- Intro to pairs: forgiving approach and exit space ---
+  // --- Intro rhythm: separated spikes with enough room to land and jump again ---
   { type: 'spike', x: 2920, y: GROUND_Y - TILE },
-  { type: 'spike', x: 2960, y: GROUND_Y - TILE },
+  { type: 'spike', x: 3240, y: GROUND_Y - TILE },
   { type: 'block', x: 3360, y: GROUND_Y - TILE, w: TILE,     h: TILE },
   { type: 'spike', x: 3680, y: GROUND_Y - TILE },
 
-  // --- Triple-block staircase: climb to an elevated platform ---
-  { type: 'block', x: 4000, y: GROUND_Y - TILE,     w: TILE * 3, h: TILE },
-  { type: 'block', x: 4160, y: GROUND_Y - TILE * 2, w: TILE * 3, h: TILE },
-  { type: 'block', x: 4320, y: GROUND_Y - TILE * 3, w: TILE * 3, h: TILE },
+  // --- Long staircase: each platform supports land, settle, and jump timing ---
+  { type: 'block', x: 4000, y: GROUND_Y - TILE,     w: LEVEL_RULES.STAIR_PLATFORM_W, h: TILE },
+  { type: 'block', x: 4400, y: GROUND_Y - TILE * 2, w: LEVEL_RULES.STAIR_PLATFORM_W, h: TILE },
+  { type: 'block', x: 4800, y: GROUND_Y - TILE * 3, w: LEVEL_RULES.STAIR_PLATFORM_W, h: TILE },
 
-  // --- Elevated platform: familiar spike rhythm on higher ground ---
-  { type: 'block', x: 4480, y: GROUND_Y - TILE * 3, w: TILE * 8, h: TILE },
-  { type: 'spike', x: 4600, y: GROUND_Y - TILE * 4 },
-  { type: 'spike', x: 4720, y: GROUND_Y - TILE * 4 },
+  // --- Elevated platform: single supported spike at this difficulty level ---
+  { type: 'block', x: 5200, y: GROUND_Y - TILE * 3, w: TILE * 14, h: TILE },
+  { type: 'spike', x: 5400, y: GROUND_Y - TILE * 4 },
 
   // --- Cascade back down to the base lane ---
-  { type: 'block', x: 4880, y: GROUND_Y - TILE * 2, w: TILE * 3, h: TILE },
-  { type: 'block', x: 5040, y: GROUND_Y - TILE,     w: TILE * 3, h: TILE },
+  { type: 'block', x: 5840, y: GROUND_Y - TILE * 2, w: LEVEL_RULES.STAIR_PLATFORM_W, h: TILE },
+  { type: 'block', x: 6240, y: GROUND_Y - TILE,     w: LEVEL_RULES.STAIR_PLATFORM_W, h: TILE },
 
   // --- Final check: return to the original ground rhythm ---
-  { type: 'spike', x: 5360, y: GROUND_Y - TILE },
-  { type: 'spike', x: 5680, y: GROUND_Y - TILE },
-  { type: 'block', x: 6000, y: GROUND_Y - TILE, w: TILE * 2, h: TILE },
-  { type: 'spike', x: 6400, y: GROUND_Y - TILE },
+  { type: 'spike', x: 6720, y: GROUND_Y - TILE },
+  { type: 'spike', x: 7040, y: GROUND_Y - TILE },
+  { type: 'block', x: 7360, y: GROUND_Y - TILE, w: TILE * 2, h: TILE },
+  { type: 'spike', x: 7760, y: GROUND_Y - TILE },
 
   // --- Win marker (safe platform) ---
-  { type: 'block', x: 6800, y: GROUND_Y - TILE, w: TILE * 4, h: TILE },
+  { type: 'block', x: 8160, y: GROUND_Y - TILE, w: TILE * 4, h: TILE },
 ];
 
-export const LEVEL_LENGTH = 7280;
+export const LEVEL_LENGTH = 8640;
+
+validateLevelData(LEVEL_DATA);
+
+function validateLevelData(levelData) {
+  const spikes = levelData.filter(o => o.type === 'spike');
+  const blocks = levelData.filter(o => o.type === 'block');
+
+  for (const spike of spikes) {
+    const sameLaneSpike = spikes.find(other =>
+      other !== spike &&
+      other.y === spike.y &&
+      other.x > spike.x &&
+      other.x - spike.x < LEVEL_RULES.MIN_SPIKE_GAP_X
+    );
+
+    if (sameLaneSpike) {
+      throw new Error(`Spikes at x=${spike.x} and x=${sameLaneSpike.x} are too close.`);
+    }
+
+    if (spike.y < GROUND_Y - TILE && !hasSupportingBlock(spike, blocks)) {
+      throw new Error(`Elevated spike at x=${spike.x}, y=${spike.y} is not fully supported.`);
+    }
+  }
+
+  for (const block of blocks.filter(o => o.y < GROUND_Y - TILE)) {
+    const supportedSpikes = spikes.filter(spike => isSpikeSupportedByBlock(spike, block));
+
+    if (supportedSpikes.length > LEVEL_RULES.MAX_ELEVATED_SPIKES_PER_PLATFORM) {
+      throw new Error(`Elevated platform at x=${block.x}, y=${block.y} has too many spikes.`);
+    }
+  }
+}
+
+function hasSupportingBlock(spike, blocks) {
+  return blocks.some(block => isSpikeSupportedByBlock(spike, block));
+}
+
+function isSpikeSupportedByBlock(spike, block) {
+  const spikeLeft = spike.x;
+  const spikeRight = spike.x + TILE;
+  const spikeBaseY = spike.y + TILE;
+
+  return (
+    block.y === spikeBaseY &&
+    block.x <= spikeLeft &&
+    block.x + block.w >= spikeRight
+  );
+}
 
 export class Level {
   constructor() {
