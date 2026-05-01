@@ -6,6 +6,7 @@ export class LevelBuilder {
     this.objects = [
       { type: 'ground', x: -200, y: WORLD.GROUND_Y, w: 99999, h: WORLD.GROUND_H },
     ];
+    this.portalCount = 0;
   }
 
   block(x, lane = 0, tilesWide = 1) {
@@ -22,7 +23,7 @@ export class LevelBuilder {
 
   spikeOnBlock(block, offsetTiles = 1) {
     const x = block.x + offsetTiles * TILE;
-    const lane = Math.round((WORLD.GROUND_Y - block.y) / TILE);
+    const lane = laneFromBlockY(block.y) + 1;
     return this.spike(x, lane);
   }
 
@@ -72,11 +73,62 @@ export class LevelBuilder {
     return { block, nextX: block.x + block.w };
   }
 
-  build() {
-    validateLevelData(this.objects);
+  portal(x, supportLane = 0, role = 'entrance', options = {}) {
+    const surfaceY = supportLane === 0 ? WORLD.GROUND_Y : laneY(supportLane);
+    const portal = {
+      type: 'portal',
+      id: options.id ?? `portal-${++this.portalCount}`,
+      pairId: options.pairId ?? null,
+      role,
+      ...(options.targetId ? { targetId: options.targetId } : {}),
+      x,
+      y: surfaceY - TILE * 3,
+      w: TILE,
+      h: TILE * 3,
+      themeKey: options.themeKey ?? null,
+    };
+
+    this.objects.push(portal);
+    return portal;
+  }
+
+  portalPair({
+    idPrefix,
+    entranceX,
+    entranceLane = 0,
+    entranceThemeKey = 'portalAEntrance',
+    exitX,
+    exitLane = 0,
+    exitThemeKey = 'portalAExit',
+  }) {
+    const pairBase = idPrefix ?? `portal-pair-${this.portalCount + 1}`;
+    const pairId = pairBase;
+    const entranceId = `${pairBase}-entrance`;
+    const exitId = `${pairBase}-exit`;
+    const entrance = this.portal(entranceX, entranceLane, 'entrance', {
+      id: entranceId,
+      pairId,
+      targetId: exitId,
+      themeKey: entranceThemeKey,
+    });
+    const exit = this.portal(exitX, exitLane, 'exit', {
+      id: exitId,
+      pairId,
+      themeKey: exitThemeKey,
+    });
+
+    return { entrance, exit };
+  }
+
+  build(options = {}) {
+    validateLevelData(this.objects, options.rules);
     return {
       data: this.objects,
       length: calculateLevelLength(this.objects),
     };
   }
+}
+
+function laneFromBlockY(y) {
+  return Math.round((WORLD.GROUND_Y - y) / TILE) - 1;
 }

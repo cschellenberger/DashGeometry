@@ -1,0 +1,12 @@
+{
+  "name": "dashgeometry",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "npm run validate:level && npm run smoke:portals && npm run smoke:runtime",
+    "smoke:portals": "node scripts/smoke-portals.mjs",
+    "smoke:runtime": "node scripts/smoke-runtime.mjs",
+    "validate:level": "node scripts/validate-level.mjs"
+  }
+}

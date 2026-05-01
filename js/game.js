@@ -1,6 +1,6 @@
 import { COLLISION, GAMEPLAY, TILE, WORLD } from './config.js';
 import { Player } from './player.js';
-import { Level, LEVEL_LENGTH } from './level.js';
+import { DEFAULT_LEVEL_ID, Level, LEVEL_DEFINITIONS } from './level.js';
 import { Renderer } from './renderer.js';
 import InputHandler from './input.js';
 
@@ -49,15 +49,27 @@ function rectIntersectsTriangle(rect, triangle) {
   );
 }
 
+function resolveLevelIndex(levelId) {
+  const defaultIndex = LEVEL_DEFINITIONS.findIndex(d => d.id === DEFAULT_LEVEL_ID);
+  const fallbackIndex = defaultIndex >= 0 ? defaultIndex : 0;
+
+  if (levelId == null) return fallbackIndex;
+  const idx = LEVEL_DEFINITIONS.findIndex(d => d.id === levelId);
+  return idx >= 0 ? idx : fallbackIndex;
+}
+
 export class Game {
-  constructor(canvas) {
+  constructor(canvas, { levelId } = {}) {
     this.renderer = new Renderer(canvas);
     this.input    = new InputHandler();
+    this.levelIndex = resolveLevelIndex(levelId);
     this.player   = new Player();
-    this.level    = new Level();
+    this.level    = new Level(this.levelIndex);
     this.state    = STATE.MENU;
     this.lastTime = 0;
     this.jumpBufferFrames = 0;
+    this.portalCooldownFrames = 0;
+    this.portalLockId = null;
     this._loop    = this._loop.bind(this);
   }
 
@@ -69,6 +81,11 @@ export class Game {
     requestAnimationFrame(this._loop);
     const frameScale = this._frameScale(ts);
     const jumpStarted = this.input.consumeJumpStart();
+    const levelSwitchRequested = this.input.consumeLevelSwitch();
+
+    if (levelSwitchRequested && this.state !== STATE.PLAYING) {
+      this._cycleLevel();
+    }
 
     if (jumpStarted) {
       if (this.state === STATE.MENU || this.state === STATE.DEAD || this.state === STATE.WIN) {
@@ -102,9 +119,22 @@ export class Game {
 
   _restart() {
     this.player = new Player();
-    this.level  = new Level();
+    this.level  = new Level(this.levelIndex);
     this.state  = STATE.PLAYING;
     this.jumpBufferFrames = this.input.isJumpHeld() ? GAMEPLAY.JUMP_BUFFER_FRAMES : 0;
+    this.portalCooldownFrames = 0;
+    this.portalLockId = null;
+    this.lastTime = 0;
+  }
+
+  _cycleLevel() {
+    this.levelIndex = (this.levelIndex + 1) % LEVEL_DEFINITIONS.length;
+    this.player = new Player();
+    this.level = new Level(this.levelIndex);
+    this.state = STATE.MENU;
+    this.jumpBufferFrames = 0;
+    this.portalCooldownFrames = 0;
+    this.portalLockId = null;
     this.lastTime = 0;
   }
 
@@ -122,11 +152,40 @@ export class Game {
 
     const obs = this.level.getVisible();
     this.player.isGrounded = false;
+    let overlappingPortalId = null;
 
     for (const o of obs) {
       const ox = o.x - this.level.cameraX;
       const ow = o.w ?? TILE;
       const oh = o.h ?? TILE;
+
+      if (o.type === 'portal') {
+        const triggerBox = {
+          x: ox + COLLISION.PORTAL_TRIGGER_INSET_X,
+          y: o.y + COLLISION.PORTAL_TRIGGER_INSET_Y,
+          w: ow - COLLISION.PORTAL_TRIGGER_INSET_X * 2,
+          h: oh - COLLISION.PORTAL_TRIGGER_INSET_Y * 2,
+        };
+
+        if (!aabb(this.player.x, this.player.y, this.player.w, this.player.h, triggerBox.x, triggerBox.y, triggerBox.w, triggerBox.h)) {
+          continue;
+        }
+
+        overlappingPortalId = o.id;
+
+        if (o.role === 'entrance' && this.portalCooldownFrames <= 0 && this.portalLockId !== o.id) {
+          const destination = this.level.getPortalTarget(o.targetId);
+
+          if (!destination) {
+            throw new Error(`Portal "${o.id}" is missing destination "${o.targetId}".`);
+          }
+
+          this._teleportToPortal(destination);
+          return;
+        }
+
+        continue;
+      }
 
       if (o.type === 'spike') {
         const playerBox = {
@@ -166,6 +225,10 @@ export class Game {
       }
     }
 
+    if (overlappingPortalId === null) {
+      this.portalLockId = null;
+    }
+
     // Fell off bottom
     if (this.player.y > WORLD.FALL_DEATH_Y) {
       this.state = STATE.DEAD;
@@ -177,20 +240,28 @@ export class Game {
     }
 
     this.jumpBufferFrames = Math.max(0, this.jumpBufferFrames - frameScale);
+    this.portalCooldownFrames = Math.max(0, this.portalCooldownFrames - frameScale);
+  }
+
+  _teleportToPortal(destination) {
+    this.level.cameraX = Math.max(0, destination.x - this.player.x + COLLISION.PORTAL_EXIT_OFFSET_X);
+    this.player.placeAt(destination.y + destination.h - this.player.h);
+    this.portalCooldownFrames = GAMEPLAY.PORTAL_COOLDOWN_FRAMES;
+    this.portalLockId = destination.id;
   }
 
   _render() {
     const { renderer, player, level, state } = this;
-    renderer.clear();
-    renderer.drawParallax(level.cameraX);
-    renderer.drawObstacles(level.getVisible(), level.cameraX);
+    renderer.clear(level.theme);
+    renderer.drawParallax(level.cameraX, level.theme);
+    renderer.drawObstacles(level.getVisible(), level.cameraX, level.theme);
     if (state === STATE.PLAYING || state === STATE.DEAD) {
-      renderer.drawPlayer(player);
+      renderer.drawPlayer(player, level.theme);
     }
-    const pct = Math.min(100, (level.cameraX / LEVEL_LENGTH) * 100);
-    if (state === STATE.PLAYING) renderer.drawUI(pct, state);
-    if (state === STATE.MENU)    renderer.drawMenu();
-    if (state === STATE.DEAD)    renderer.drawDead(pct);
-    if (state === STATE.WIN)     renderer.drawWin();
+    const pct = Math.min(100, (level.cameraX / level.length) * 100);
+    if (state === STATE.PLAYING) renderer.drawUI(pct, level.name, level.theme);
+    if (state === STATE.MENU)    renderer.drawMenu(level.name, level.theme);
+    if (state === STATE.DEAD)    renderer.drawDead(pct, level.name, level.theme);
+    if (state === STATE.WIN)     renderer.drawWin(level.name, level.theme);
   }
 }

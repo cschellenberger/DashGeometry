@@ -7,7 +7,17 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <canvas id="gameCanvas"></canvas>
+  <p id="gameDescription" class="sr-only">
+    DashGeometry starts on Classic Dash by default. Use Space, Up Arrow, click, or tap to jump.
+    Add ?level=ember-ascent to the URL to start the second level.
+  </p>
+  <canvas
+    id="gameCanvas"
+    aria-label="DashGeometry game canvas"
+    aria-describedby="gameDescription"
+  >
+    DashGeometry requires HTML5 canvas support. Open the page in a modern browser to play.
+  </canvas>
   <script type="module" src="js/main.js"></script>
 </body>
 </html>

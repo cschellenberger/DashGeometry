@@ -29,6 +29,14 @@ export class Player {
     return false;
   }
 
+  placeAt(y) {
+    this.y = y;
+    this.prevY = y;
+    this.vy = 0;
+    this.isGrounded = true;
+    this.angle = Math.round(this.angle / 90) * 90;
+  }
+
   update(frameScale = 1) {
     this.prevY = this.y;
     this.vy += GRAVITY * frameScale;

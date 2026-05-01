@@ -7,6 +7,7 @@ npm-debug.log*
 yarn-debug.log*
 *.local
 .vscode/
+.vs/
 .idea/
 .DS_Store
 Thumbs.db
