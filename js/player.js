@@ -16,17 +16,25 @@ export class Player {
     this.h = TILE - 2;
     this.vy = 0;
     this.isGrounded = false;
+    this.hasJumped = false;
     this.angle = 0;
   }
 
   jump() {
     if (this.isGrounded) {
-      this.vy = PLAYER_PHYSICS.JUMP_FORCE;
-      this.isGrounded = false;
+      this.launch();
       return true;
     }
 
     return false;
+  }
+
+  launch(heightMultiplier = 1) {
+    // Height = velocity squared / (2 * gravity). Doubling velocity would
+    // quadruple height; scale by the square root of the desired height instead.
+    this.vy = PLAYER_PHYSICS.JUMP_FORCE * Math.sqrt(heightMultiplier);
+    this.isGrounded = false;
+    this.hasJumped = true;
   }
 
   placeAt(y) {
@@ -34,6 +42,7 @@ export class Player {
     this.prevY = y;
     this.vy = 0;
     this.isGrounded = true;
+    this.hasJumped = false;
     this.angle = Math.round(this.angle / 90) * 90;
   }
 

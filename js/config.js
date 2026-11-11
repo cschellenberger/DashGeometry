@@ -32,6 +32,13 @@ export const GAMEPLAY = {
   PORTAL_COOLDOWN_FRAMES: 16,
 };
 
+export const BOUNCE_PAD = {
+  HEIGHT_MULTIPLIER: 2,
+  WIDTH: TILE * 2,
+  COLOR: '#63ff8c',
+  EDGE_COLOR: '#168344',
+};
+
 export const DEFAULT_LEVEL_THEME = {
   background: '#1a1a2e',
   parallaxSlow: '#16213e',

@@ -1,44 +1,46 @@
-import http from 'node:http';
-import fs from 'node:fs';
-import path from 'node:path';
+import { createReadStream, existsSync, statSync } from 'node:fs';
+import { createServer } from 'node:http';
+import { extname, join, normalize, resolve } from 'node:path';
 
-const root = process.cwd();
-const port = Number(process.argv[2] ?? 8000);
-const host = '127.0.0.1';
+const host = process.env.HOST || '127.0.0.1';
+const port = Number(process.env.PORT || 8000);
+const root = resolve(process.cwd());
 
-const types = {
+const contentTypes = {
   '.css': 'text/css; charset=utf-8',
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
   '.json': 'application/json; charset=utf-8',
-  '.mjs': 'text/javascript; charset=utf-8',
+  '.png': 'image/png',
+  '.svg': 'image/svg+xml',
 };
 
-const server = http.createServer((req, res) => {
-  const url = new URL(req.url ?? '/', `http://${req.headers.host}`);
-  const requestedPath = url.pathname === '/' ? '/index.html' : decodeURIComponent(url.pathname);
-  const filePath = path.normalize(path.join(root, requestedPath));
+function send(res, status, body) {
+  res.writeHead(status, { 'Content-Type': 'text/plain; charset=utf-8' });
+  res.end(body);
+}
+
+const server = createServer((req, res) => {
+  const url = new URL(req.url || '/', `http://${host}:${port}`);
+  const pathname = decodeURIComponent(url.pathname === '/' ? '/index.html' : url.pathname);
+  const filePath = normalize(join(root, pathname));
 
   if (!filePath.startsWith(root)) {
-    res.writeHead(403);
-    res.end('Forbidden');
+    send(res, 403, 'Forbidden');
     return;
   }
 
-  fs.readFile(filePath, (error, data) => {
-    if (error) {
-      res.writeHead(404);
-      res.end('Not found');
-      return;
-    }
+  if (!existsSync(filePath) || !statSync(filePath).isFile()) {
+    send(res, 404, 'Not found');
+    return;
+  }
 
-    res.writeHead(200, {
-      'Content-Type': types[path.extname(filePath)] ?? 'application/octet-stream',
-    });
-    res.end(data);
+  res.writeHead(200, {
+    'Content-Type': contentTypes[extname(filePath).toLowerCase()] || 'application/octet-stream',
   });
+  createReadStream(filePath).pipe(res);
 });
 
 server.listen(port, host, () => {
-  console.log(`DashGeometry server listening at http://${host}:${port}/`);
+  console.log(`DashGeometry server http://${host}:${port}/`);
 });

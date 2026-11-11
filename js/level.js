@@ -1,6 +1,8 @@
 import { DEFAULT_LEVEL_THEME, EMBER_ASCENT_THEME, PLAYER_PHYSICS, TILE } from './config.js';
 import { LevelBuilder } from './levelBuilder.js';
 import { createLevelRules, LEVEL_RULES } from './levelRules.js';
+import { SKYWARD_TERRACES } from './levels/skywardTerraces.js';
+export { SKYWARD_TERRACES_LEVEL_ID } from './levels/skywardTerraces.js';
 
 export { LEVEL_RULES };
 
@@ -33,22 +35,35 @@ const EMBER_THEME = {
   danger: EMBER_ASCENT_THEME.spike,
 };
 
-// Each entry: { type: 'ground'|'block'|'spike'|'portal', x, y, w?, h? }
+// Each entry: { type: 'ground'|'block'|'spike'|'portal'|'bouncePad'|'orb', x, y, w?, h? }
 function createLevelOne(rules) {
   const level = new LevelBuilder();
 
+  // Optional bounce tutorial: room to jump onto it and land before spike one.
+  level.bouncePad(280);
+  level.orb(200, 400, 'cyan');
+  level.orb(360, 240, 'pink');
+
   // Warm-up: isolated single spikes with long recovery gaps.
   level.singleSpikeRhythm(640, 4, LEVEL_RULES.FIRST_LEVEL_SPIKE_GAP_TILES);
+  level.orb(650, 400, 'gold');
+  level.orb(970, 400, 'cyan');
+  level.orb(1290, 400, 'gold');
+  level.orb(1610, 400, 'cyan');
 
   // First platform reads: low blocks with safe exits.
   level.block(1960, 0, 1);
   level.block(2240, 0, 2);
   level.spike(2520, 0);
+  level.bouncePad(2780);
+  level.orb(2700, 400, 'cyan');
+  level.orb(2860, 240, 'pink');
 
   // Intro rhythm: separated spikes with enough room to land and jump again.
   level.singleSpikeRhythm(2920, 2, LEVEL_RULES.FIRST_LEVEL_SPIKE_GAP_TILES);
   level.block(3360, 0, 1);
   level.spike(3680, 0);
+  level.orb(3690, 400, 'gold');
 
   // Long staircase: each platform supports land, settle, and jump timing.
   const climb = level.staircase(4000, 0, 3);
@@ -56,6 +71,9 @@ function createLevelOne(rules) {
   // Elevated platform: single supported spike at this difficulty level.
   const elevated = level.block(climb.nextX, 2, LEVEL_RULES.ELEVATED_PLATFORM_TILES);
   level.spikeOnBlock(elevated, 5);
+  level.bouncePad(elevated.x + TILE * 8, { surfaceY: elevated.y });
+  level.orb(elevated.x + TILE * 6, elevated.y - 160, 'gold');
+  level.orb(elevated.x + TILE * 10, elevated.y - 320, 'pink');
 
   // Cascade back down to the base lane.
   const descent = level.cascade(elevated.x + elevated.w + LEVEL_RULES.STAIR_STEP_GAP_X, 1, 2);
@@ -64,6 +82,7 @@ function createLevelOne(rules) {
   level.singleSpikeRhythm(descent.nextX + TILE * 2, 2, LEVEL_RULES.FIRST_LEVEL_SPIKE_GAP_TILES);
   level.block(descent.nextX + TILE * 18, 0, 2);
   level.spike(descent.nextX + TILE * 28, 0);
+  level.orb(descent.nextX + TILE * 28 + 10, 400, 'gold');
 
   // Win marker: safe finish platform after the final read.
   level.finishPlatform(descent.nextX + TILE * 38, 4);
@@ -140,13 +159,14 @@ function createEmberAscent(rules) {
   return level.build({ rules });
 }
 
-function createLevelDefinition({ id, name, speed, theme, rules, build }) {
+function createLevelDefinition({ id, name, hint, speed, theme, rules, build }) {
   const resolvedRules = createLevelRules({ ...rules, speedX: speed });
   const built = build(resolvedRules);
 
   return {
     id,
     name,
+    hint,
     speed,
     theme,
     data: built.data,
@@ -178,6 +198,7 @@ export const LEVELS = [
     },
     build: createEmberAscent,
   }),
+  createLevelDefinition(SKYWARD_TERRACES),
 ];
 
 export const LEVEL_DEFINITIONS = LEVELS;
@@ -200,17 +221,13 @@ export class Level {
     this.definition = getLevelDefinition(levelId);
     this.id = this.definition.id;
     this.name = this.definition.name;
+    this.hint = this.definition.hint;
     this.speed = this.definition.speed;
     this.theme = this.definition.theme;
     this.data = this.definition.data;
     this.length = this.definition.length;
     this.rules = this.definition.rules;
     this.cameraX = 0;
-    this.portalsById = new Map(
-      this.data
-        .filter(object => object.type === 'portal')
-        .map(object => [object.id, object])
-    );
   }
 
   getVisible() {
@@ -218,10 +235,6 @@ export class Level {
       (o.x + (o.w || TILE)) >= this.cameraX - 100 &&
       o.x <= this.cameraX + 900
     );
-  }
-
-  getPortalTarget(targetId) {
-    return this.portalsById.get(targetId) ?? null;
   }
 
   update(frameScale = 1) {

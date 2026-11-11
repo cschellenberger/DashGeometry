@@ -3,6 +3,9 @@ import { Player } from './player.js';
 import { DEFAULT_LEVEL_ID, Level, LEVEL_DEFINITIONS } from './level.js';
 import { Renderer } from './renderer.js';
 import InputHandler from './input.js';
+import { bounceFromLanding } from './bouncePad.js';
+import { ScoreSystem } from './scoring.js';
+import { PortalSystem } from './portal.js';
 
 const STATE = { MENU: 'menu', PLAYING: 'playing', DEAD: 'dead', WIN: 'win' };
 
@@ -65,11 +68,11 @@ export class Game {
     this.levelIndex = resolveLevelIndex(levelId);
     this.player   = new Player();
     this.level    = new Level(this.levelIndex);
+    this.scoring = new ScoreSystem(this.level.data.filter(o => o.type === 'orb'));
     this.state    = STATE.MENU;
     this.lastTime = 0;
     this.jumpBufferFrames = 0;
-    this.portalCooldownFrames = 0;
-    this.portalLockId = null;
+    this.portals = new PortalSystem(this.level.data.filter(o => o.type === 'portal'));
     this._loop    = this._loop.bind(this);
   }
 
@@ -120,10 +123,10 @@ export class Game {
   _restart() {
     this.player = new Player();
     this.level  = new Level(this.levelIndex);
+    this.scoring = new ScoreSystem(this.level.data.filter(o => o.type === 'orb'));
     this.state  = STATE.PLAYING;
     this.jumpBufferFrames = this.input.isJumpHeld() ? GAMEPLAY.JUMP_BUFFER_FRAMES : 0;
-    this.portalCooldownFrames = 0;
-    this.portalLockId = null;
+    this.portals = new PortalSystem(this.level.data.filter(o => o.type === 'portal'));
     this.lastTime = 0;
   }
 
@@ -131,14 +134,15 @@ export class Game {
     this.levelIndex = (this.levelIndex + 1) % LEVEL_DEFINITIONS.length;
     this.player = new Player();
     this.level = new Level(this.levelIndex);
+    this.scoring = new ScoreSystem(this.level.data.filter(o => o.type === 'orb'));
     this.state = STATE.MENU;
     this.jumpBufferFrames = 0;
-    this.portalCooldownFrames = 0;
-    this.portalLockId = null;
+    this.portals = new PortalSystem(this.level.data.filter(o => o.type === 'portal'));
     this.lastTime = 0;
   }
 
   _update(frameScale) {
+    this.portals.beginFrame(frameScale, this.player, this.level.cameraX);
     if (this.input.isJumpHeld()) {
       this._queueJump();
     }
@@ -151,39 +155,21 @@ export class Game {
     this.player.update(frameScale);
 
     const obs = this.level.getVisible();
+    const bouncePads = obs.filter(o => o.type === 'bouncePad');
     this.player.isGrounded = false;
-    let overlappingPortalId = null;
 
     for (const o of obs) {
+      if (o.type === 'bouncePad' || o.type === 'orb') continue;
       const ox = o.x - this.level.cameraX;
       const ow = o.w ?? TILE;
       const oh = o.h ?? TILE;
 
       if (o.type === 'portal') {
-        const triggerBox = {
-          x: ox + COLLISION.PORTAL_TRIGGER_INSET_X,
-          y: o.y + COLLISION.PORTAL_TRIGGER_INSET_Y,
-          w: ow - COLLISION.PORTAL_TRIGGER_INSET_X * 2,
-          h: oh - COLLISION.PORTAL_TRIGGER_INSET_Y * 2,
-        };
-
-        if (!aabb(this.player.x, this.player.y, this.player.w, this.player.h, triggerBox.x, triggerBox.y, triggerBox.w, triggerBox.h)) {
-          continue;
-        }
-
-        overlappingPortalId = o.id;
-
-        if (o.role === 'entrance' && this.portalCooldownFrames <= 0 && this.portalLockId !== o.id) {
-          const destination = this.level.getPortalTarget(o.targetId);
-
-          if (!destination) {
-            throw new Error(`Portal "${o.id}" is missing destination "${o.targetId}".`);
-          }
-
+        const destination = this.portals.destinationFor(o, this.player, this.level.cameraX);
+        if (destination) {
           this._teleportToPortal(destination);
           return;
         }
-
         continue;
       }
 
@@ -214,19 +200,16 @@ export class Game {
       const landingFromTop   = playerPrevBottom <= o.y + COLLISION.LANDING_TOLERANCE && this.player.vy >= 0;
 
       if (landingFromTop) {
-        this.player.y  = o.y - this.player.h;
-        this.player.vy = 0;
-        this.player.isGrounded = true;
-        this.player.angle = Math.round(this.player.angle / 90) * 90;
+        if (bounceFromLanding(this.player, bouncePads, this.level.cameraX, o.y)) {
+          this.jumpBufferFrames = 0;
+        } else {
+          this.player.placeAt(o.y - this.player.h);
+        }
       } else {
         // side or bottom collision = death
         this.state = STATE.DEAD;
         return;
       }
-    }
-
-    if (overlappingPortalId === null) {
-      this.portalLockId = null;
     }
 
     // Fell off bottom
@@ -235,33 +218,34 @@ export class Game {
       return;
     }
 
+    this.scoring.update(this.player, this.level.cameraX);
+
     if (this.level.complete) {
       this.state = STATE.WIN;
     }
 
     this.jumpBufferFrames = Math.max(0, this.jumpBufferFrames - frameScale);
-    this.portalCooldownFrames = Math.max(0, this.portalCooldownFrames - frameScale);
   }
 
   _teleportToPortal(destination) {
-    this.level.cameraX = Math.max(0, destination.x - this.player.x + COLLISION.PORTAL_EXIT_OFFSET_X);
-    this.player.placeAt(destination.y + destination.h - this.player.h);
-    this.portalCooldownFrames = GAMEPLAY.PORTAL_COOLDOWN_FRAMES;
-    this.portalLockId = destination.id;
+    this.portals.teleport(this.player, this.level, destination);
+    this.scoring.pass(this.player.left + this.level.cameraX);
+    this.jumpBufferFrames = 0;
   }
 
   _render() {
     const { renderer, player, level, state } = this;
     renderer.clear(level.theme);
     renderer.drawParallax(level.cameraX, level.theme);
-    renderer.drawObstacles(level.getVisible(), level.cameraX, level.theme);
+    const visible = level.getVisible().filter(o => o.type !== 'orb' || !this.scoring.collected.has(o.sequence));
+    renderer.drawObstacles(visible, level.cameraX, level.theme);
     if (state === STATE.PLAYING || state === STATE.DEAD) {
       renderer.drawPlayer(player, level.theme);
     }
     const pct = Math.min(100, (level.cameraX / level.length) * 100);
-    if (state === STATE.PLAYING) renderer.drawUI(pct, level.name, level.theme);
-    if (state === STATE.MENU)    renderer.drawMenu(level.name, level.theme);
-    if (state === STATE.DEAD)    renderer.drawDead(pct, level.name, level.theme);
-    if (state === STATE.WIN)     renderer.drawWin(level.name, level.theme);
+    if (state === STATE.PLAYING) renderer.drawUI(pct, level.name, level.theme, this.scoring);
+    if (state === STATE.MENU)    renderer.drawMenu(level.name, level.theme, level.hint);
+    if (state === STATE.DEAD)    renderer.drawDead(pct, level.name, level.theme, this.scoring);
+    if (state === STATE.WIN)     renderer.drawWin(level.name, level.theme, this.scoring);
   }
 }

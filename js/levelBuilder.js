@@ -1,5 +1,7 @@
-import { TILE, WORLD } from './config.js';
+import { BOUNCE_PAD, TILE, WORLD } from './config.js';
 import { calculateLevelLength, laneY, LEVEL_RULES, validateLevelData } from './levelRules.js';
+import { ORB_SIZE } from './scoring.js';
+import { createPortal, createPortalPair } from './portal.js';
 
 export class LevelBuilder {
   constructor() {
@@ -19,6 +21,24 @@ export class LevelBuilder {
     const spike = { type: 'spike', x, y: laneY(lane) };
     this.objects.push(spike);
     return spike;
+  }
+
+  bouncePad(x, options = {}) {
+    const pad = {
+      type: 'bouncePad',
+      x,
+      y: options.surfaceY ?? WORLD.GROUND_Y,
+      w: options.width ?? BOUNCE_PAD.WIDTH,
+      heightMultiplier: options.heightMultiplier ?? BOUNCE_PAD.HEIGHT_MULTIPLIER,
+    };
+    this.objects.push(pad);
+    return pad;
+  }
+
+  orb(x, y, kind = 'cyan') {
+    const orb = { type: 'orb', x, y, w: ORB_SIZE, h: ORB_SIZE, kind };
+    this.objects.push(orb);
+    return orb;
   }
 
   spikeOnBlock(block, offsetTiles = 1) {
@@ -74,53 +94,36 @@ export class LevelBuilder {
   }
 
   portal(x, supportLane = 0, role = 'entrance', options = {}) {
-    const surfaceY = supportLane === 0 ? WORLD.GROUND_Y : laneY(supportLane);
-    const portal = {
-      type: 'portal',
-      id: options.id ?? `portal-${++this.portalCount}`,
+    const serial = ++this.portalCount;
+    const portal = createPortal({
+      x, role,
+      surfaceY: options.surfaceY ?? (supportLane === 0 ? WORLD.GROUND_Y : laneY(supportLane)),
+      id: options.id ?? `portal-${serial}`,
       pairId: options.pairId ?? null,
-      role,
-      ...(options.targetId ? { targetId: options.targetId } : {}),
-      x,
-      y: surfaceY - TILE * 3,
-      w: TILE,
-      h: TILE * 3,
-      themeKey: options.themeKey ?? null,
-    };
-
+      targetId: options.targetId,
+      themeKey: options.themeKey,
+      height: options.height,
+    });
     this.objects.push(portal);
     return portal;
   }
 
-  portalPair({
-    idPrefix,
-    entranceX,
-    entranceLane = 0,
-    entranceThemeKey = 'portalAEntrance',
-    exitX,
-    exitLane = 0,
-    exitThemeKey = 'portalAExit',
-  }) {
-    const pairBase = idPrefix ?? `portal-pair-${this.portalCount + 1}`;
-    const pairId = pairBase;
-    const entranceId = `${pairBase}-entrance`;
-    const exitId = `${pairBase}-exit`;
-    const entrance = this.portal(entranceX, entranceLane, 'entrance', {
-      id: entranceId,
-      pairId,
-      targetId: exitId,
-      themeKey: entranceThemeKey,
+  portalPair(options) {
+    const serial = ++this.portalCount;
+    const { entranceLane = 0, exitLane = 0 } = options;
+    const pair = createPortalPair({
+      ...options,
+      idPrefix: options.idPrefix ?? `portal-pair-${serial}`,
+      entranceSurfaceY: options.entranceSurfaceY ?? (entranceLane === 0 ? WORLD.GROUND_Y : laneY(entranceLane)),
+      exitSurfaceY: options.exitSurfaceY ?? (exitLane === 0 ? WORLD.GROUND_Y : laneY(exitLane)),
     });
-    const exit = this.portal(exitX, exitLane, 'exit', {
-      id: exitId,
-      pairId,
-      themeKey: exitThemeKey,
-    });
-
-    return { entrance, exit };
+    this.objects.push(pair.entrance, pair.exit);
+    return pair;
   }
 
   build(options = {}) {
+    this.objects.filter(o => o.type === 'orb').sort((a, b) => a.x - b.x)
+      .forEach((orb, index) => { orb.sequence = index + 1; });
     validateLevelData(this.objects, options.rules);
     return {
       data: this.objects,

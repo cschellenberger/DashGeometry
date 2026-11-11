@@ -1,51 +1,84 @@
-import { EMBER_ASCENT_LEVEL_ID, getLevelDefinition } from '../js/level.js';
-import { COLLISION, TILE, WORLD } from '../js/config.js';
+import assert from 'node:assert/strict';
+import { LEVELS } from '../js/level.js';
+import { GAMEPLAY } from '../js/config.js';
+import { PortalSystem } from '../js/portal.js';
+import { LevelBuilder } from '../js/levelBuilder.js';
+import { Player } from '../js/player.js';
 
-const level2 = getLevelDefinition(EMBER_ASCENT_LEVEL_ID);
-const portals = level2.data.filter(o => o.type === 'portal');
-const entrances = portals.filter(p => p.role === 'entrance');
-const exits = portals.filter(p => p.role === 'exit');
+for (const definition of LEVELS) {
+  const portals = definition.data.filter(o => o.type === 'portal');
+  for (const entrance of portals.filter(o => o.role === 'entrance')) {
+    const system = new PortalSystem(portals);
+    const player = new Player();
+    const level = { cameraX: entrance.x - player.x };
+    player.placeAt(entrance.y + entrance.h - player.h);
+    const destination = system.destinationFor(entrance, player, level.cameraX);
+    assert.equal(destination?.id, entrance.targetId);
+    const before = level.cameraX;
+    player.jump();
+    system.teleport(player, level, destination);
+    assert.ok(level.cameraX > before);
+    assert.equal(player.bottom, destination.y + destination.h);
+    assert.equal(player.vy, 0);
+    assert.equal(player.hasJumped, false);
+    assert.equal(player.isGrounded, true);
+    assert.equal(system.lockId, destination.id);
+    assert.equal(system.cooldownFrames, GAMEPLAY.PORTAL_COOLDOWN_FRAMES);
+    assert.equal(system.destinationFor(destination, player, level.cameraX), null, 'Exits never retrigger.');
+    assert.ok(definition.data.some(o => ['ground', 'block'].includes(o.type) &&
+      o.y === player.bottom && o.x <= player.left + level.cameraX &&
+      o.x + o.w >= player.right + level.cameraX), 'The entire player must land on a supporting surface.');
 
-const PLAYER_X_SCREEN = 120;
-const PLAYER_H = TILE - 2;
-
-let ok = true;
-
-console.log(`=== Portal Smoke Test: ${level2.name} (speed ${level2.speed}) ===`);
-console.log(`${entrances.length} portal entrances, ${exits.length} exits\n`);
-
-for (const entrance of entrances) {
-  const dest = exits.find(e => e.id === entrance.targetId);
-  if (!dest) {
-    console.error(`No exit found for ${entrance.id}`);
-    ok = false;
-    continue;
+    // While touching the exit, the lock survives cooldown expiry.
+    system.beginFrame(GAMEPLAY.PORTAL_COOLDOWN_FRAMES, player, level.cameraX);
+    assert.equal(system.cooldownFrames, 0);
+    assert.equal(system.lockId, destination.id);
+    system.teleport(player, level, destination);
+    level.cameraX = entrance.x - player.x;
+    player.placeAt(entrance.y + entrance.h - player.h);
+    system.beginFrame(1, player, level.cameraX);
+    assert.equal(system.lockId, null);
+    assert.equal(system.destinationFor(entrance, player, level.cameraX), null, 'Cooldown blocks another entrance.');
+    system.beginFrame(GAMEPLAY.PORTAL_COOLDOWN_FRAMES, player, level.cameraX);
+    assert.equal(system.destinationFor(entrance, player, level.cameraX), destination);
+    player.y = entrance.y - player.h - 1;
+    assert.equal(system.destinationFor(entrance, player, level.cameraX), null, 'Passing above an entrance does not teleport.');
+    system.reset();
+    assert.equal(system.lockId, null);
+    assert.equal(system.cooldownFrames, 0);
   }
-
-  const cameraXBefore = entrance.x - PLAYER_X_SCREEN;
-  const newCameraX = Math.max(0, dest.x - PLAYER_X_SCREEN + COLLISION.PORTAL_EXIT_OFFSET_X);
-  const newPlayerY = dest.y + dest.h - PLAYER_H;
-  const surfaceY = dest.y + dest.h;
-
-  console.log(`${entrance.id} -> ${dest.id}`);
-  console.log(`  Entrance world x=${entrance.x}  Exit world x=${dest.x}`);
-  console.log(`  Camera: ${cameraXBefore} -> ${newCameraX}  (advance +${newCameraX - cameraXBefore}px)`);
-  console.log(`  Player Y after teleport: ${newPlayerY}  (surface at y=${surfaceY})`);
-
-  if (newCameraX <= cameraXBefore) {
-    console.error('  FAIL: camera did not advance'); ok = false;
-  }
-  if (surfaceY === WORLD.GROUND_Y) {
-    console.log('  Lands on: ground');
-  } else {
-    console.log(`  Lands on: elevated block at y=${surfaceY}`);
-  }
-  console.log();
 }
 
-if (ok) {
-  console.log('All portal teleports look correct.');
-} else {
-  console.error('One or more checks failed.');
-  process.exitCode = 1;
+function pairedBuilder() {
+  const builder = new LevelBuilder();
+  const first = builder.portalPair({ entranceX: 400, exitX: 800 });
+  const second = builder.portalPair({ entranceX: 1200, exitX: 1600 });
+  return { builder, first, second };
 }
+const automatic = pairedBuilder();
+assert.doesNotThrow(() => automatic.builder.build());
+assert.notEqual(automatic.first.entrance.id, automatic.second.entrance.id, 'Unnamed pairs get unique IDs.');
+
+const mismatch = pairedBuilder();
+mismatch.first.entrance.targetId = mismatch.second.exit.id;
+assert.throws(() => mismatch.builder.build(), /another pair/);
+const missing = pairedBuilder();
+missing.first.entrance.targetId = 'missing';
+assert.throws(() => missing.builder.build(), /missing portal/);
+const duplicate = pairedBuilder();
+duplicate.second.exit.id = duplicate.first.exit.id;
+assert.throws(() => duplicate.builder.build(), /duplicated/);
+const orphan = pairedBuilder();
+orphan.builder.objects = orphan.builder.objects.filter(o => o !== orphan.first.entrance);
+assert.throws(() => orphan.builder.build(), /exactly one paired entrance/);
+const badSize = pairedBuilder();
+badSize.first.entrance.h = 0;
+assert.throws(() => badSize.builder.build(), /invalid dimensions/);
+const unsupported = new LevelBuilder();
+unsupported.block(800, 2, 1);
+unsupported.portalPair({ entranceX: 400, exitX: 800, exitLane: 2 });
+assert.throws(() => unsupported.build(), /not fully supported/, 'An exit must support the full player after its placement offset.');
+const spike = pairedBuilder();
+spike.builder.spike(820);
+assert.throws(() => spike.builder.build(), /overlaps a spike|only .*before spike/);
+console.log('Portal module checks passed for all levels, pairing, cooldowns, locks, and safe exits.');

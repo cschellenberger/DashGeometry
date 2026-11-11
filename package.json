@@ -4,7 +4,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "check": "npm run validate:level && npm run smoke:portals && npm run smoke:runtime",
+    "dev": "node scripts/dev-server.mjs",
+    "check": "npm run validate:level && npm run smoke:portals && npm run smoke:scoring && npm run smoke:runtime && npm run smoke:terraces",
+    "smoke:terraces": "node scripts/smoke-terraces.mjs",
+    "smoke:scoring": "node scripts/smoke-scoring.mjs",
     "smoke:portals": "node scripts/smoke-portals.mjs",
     "smoke:runtime": "node scripts/smoke-runtime.mjs",
     "validate:level": "node scripts/validate-level.mjs"

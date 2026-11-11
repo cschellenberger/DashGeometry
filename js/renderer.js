@@ -1,4 +1,5 @@
-import { TILE } from './config.js';
+import { BOUNCE_PAD, TILE } from './config.js';
+import { ORB_TYPES } from './scoring.js';
 
 const BG_COLOR   = '#1a1a2e';
 const GROUND_COL = '#16213e';
@@ -78,30 +79,87 @@ export class Renderer {
         ctx.closePath();
         ctx.fill();
         ctx.stroke();
+      } else if (o.type === 'orb') {
+        this.drawOrb(o, cameraX);
       } else if (o.type === 'portal') {
-        const fallbackColor = o.role === 'entrance' ? '#4deeea' : '#9b5de5';
-        const portalColor = (o.themeKey && theme[o.themeKey]) ?? fallbackColor;
-        const glowColor = theme.portalGlow ?? 'rgba(77, 238, 234, 0.26)';
-        const cx = sx + o.w / 2;
-        const cy = o.y + o.h / 2;
-
-        ctx.save();
-        ctx.fillStyle = glowColor;
-        ctx.beginPath();
-        ctx.ellipse(cx, cy, o.w * 0.58, o.h * 0.48, 0, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.strokeStyle = portalColor;
-        ctx.lineWidth = 4;
-        ctx.beginPath();
-        ctx.ellipse(cx, cy, o.w * 0.38, o.h * 0.42, 0, 0, Math.PI * 2);
-        ctx.stroke();
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.ellipse(cx, cy, o.w * 0.24, o.h * 0.28, 0, 0, Math.PI * 2);
-        ctx.stroke();
-        ctx.restore();
+        this.drawPortal(o, cameraX, theme);
       }
     }
+    // Draw surface decorations last so platform/ground order cannot hide them.
+    for (const pad of obstacles.filter(o => o.type === 'bouncePad')) {
+      this.drawBouncePad(pad, cameraX, theme);
+    }
+  }
+
+  drawPortal(o, cameraX, theme = {}) {
+    const { ctx } = this;
+    const sx = o.x - cameraX;
+    const fallbackColor = o.role === 'entrance' ? '#4deeea' : '#9b5de5';
+    const portalColor = (o.themeKey && theme[o.themeKey]) ?? fallbackColor;
+    const glowColor = theme.portalGlow ?? 'rgba(77, 238, 234, 0.26)';
+    const cx = sx + o.w / 2;
+    const cy = o.y + o.h / 2;
+
+    ctx.save();
+    ctx.fillStyle = glowColor;
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, o.w * 0.58, o.h * 0.48, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = portalColor;
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, o.w * 0.38, o.h * 0.42, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, o.w * 0.24, o.h * 0.28, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  drawBouncePad(pad, cameraX, theme = {}) {
+    const { ctx } = this;
+    const x = pad.x - cameraX;
+    ctx.save();
+    ctx.fillStyle = theme.bouncePad ?? BOUNCE_PAD.COLOR;
+    ctx.fillRect(x, pad.y - 8, pad.w, 8);
+    ctx.strokeStyle = theme.bouncePadEdge ?? BOUNCE_PAD.EDGE_COLOR;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x + 1, pad.y - 7, pad.w - 2, 6);
+    ctx.strokeStyle = theme.bouncePad ?? BOUNCE_PAD.COLOR;
+    for (const offset of [18, 28]) {
+      ctx.beginPath();
+      ctx.moveTo(x + pad.w / 2 - 7, pad.y - offset + 5);
+      ctx.lineTo(x + pad.w / 2, pad.y - offset);
+      ctx.lineTo(x + pad.w / 2 + 7, pad.y - offset + 5);
+      ctx.stroke();
+    }
+    ctx.fillStyle = theme.bouncePad ?? BOUNCE_PAD.COLOR;
+    ctx.font = 'bold 12px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(`${pad.heightMultiplier}x HEIGHT`, x + pad.w / 2, pad.y - 40);
+    ctx.restore();
+  }
+
+  drawOrb(orb, cameraX) {
+    const { ctx } = this;
+    const { color, points } = ORB_TYPES[orb.kind];
+    const radius = orb.w / 2;
+    const cx = orb.x - cameraX + radius;
+    const cy = orb.y + radius;
+    ctx.save();
+    ctx.fillStyle = color;
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, radius, radius, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = '#151525';
+    ctx.font = 'bold 12px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(points, cx, cy + 4);
+    ctx.restore();
   }
 
   drawPlayer(player, theme = {}) {
@@ -122,15 +180,23 @@ export class Renderer {
     ctx.restore();
   }
 
-  drawUI(score, levelName, theme = {}) {
+  drawUI(score, levelName, theme = {}, scoring) {
     const { ctx } = this;
     ctx.fillStyle = theme.ui ?? '#ecf0f1';
     ctx.font = 'bold 18px monospace';
     ctx.fillText(`${Math.floor(score)}%`, 16, 30);
     ctx.fillText(levelName, 16, 56);
+    if (scoring) {
+      ctx.save();
+      ctx.textAlign = 'right';
+      ctx.fillText(`Score ${scoring.total} | x${scoring.multiplier}`, 784, 30);
+      ctx.font = '14px monospace';
+      ctx.fillText(`Orbs ${scoring.collected.size}/${scoring.orbs.length}`, 784, 54);
+      ctx.restore();
+    }
   }
 
-  drawMenu(levelName, theme = {}) {
+  drawMenu(levelName, theme = {}, hint) {
     const { ctx } = this;
     ctx.fillStyle = 'rgba(0,0,0,0.6)';
     ctx.fillRect(0, 0, 800, 600);
@@ -146,10 +212,13 @@ export class Renderer {
     ctx.fillStyle = theme.muted ?? '#95a5a6';
     ctx.fillText('Avoid spikes. Reach the end.', 400, 370);
     ctx.fillText('Press L to switch levels.', 400, 398);
+    ctx.fillText('Jump for orbs: cyan 10 / gold 25 / pink 50', 400, 434);
+    ctx.fillText('Collect in order: x1, x2, x3... Miss one to reset.', 400, 458);
+    if (hint) ctx.fillText(hint, 400, 486);
     ctx.textAlign = 'left';
   }
 
-  drawDead(score, levelName, theme = {}) {
+  drawDead(score, levelName, theme = {}, scoring) {
     const { ctx } = this;
     ctx.fillStyle = 'rgba(0,0,0,0.65)';
     ctx.fillRect(0, 0, 800, 600);
@@ -166,10 +235,11 @@ export class Renderer {
     ctx.font = '14px monospace';
     ctx.fillStyle = theme.muted ?? '#95a5a6';
     ctx.fillText('Press L to switch levels.', 400, 404);
+    if (scoring) ctx.fillText(`Score ${scoring.total} | Orbs ${scoring.collected.size}/${scoring.orbs.length}`, 400, 440);
     ctx.textAlign = 'left';
   }
 
-  drawWin(levelName, theme = {}) {
+  drawWin(levelName, theme = {}, scoring) {
     const { ctx } = this;
     ctx.fillStyle = 'rgba(0,0,0,0.65)';
     ctx.fillRect(0, 0, 800, 600);
@@ -186,6 +256,7 @@ export class Renderer {
     ctx.font = '14px monospace';
     ctx.fillStyle = theme.muted ?? '#95a5a6';
     ctx.fillText('Press L to switch levels.', 400, 404);
+    if (scoring) ctx.fillText(`Score ${scoring.total} | Orbs ${scoring.collected.size}/${scoring.orbs.length}`, 400, 440);
     ctx.textAlign = 'left';
   }
 }
