@@ -6,6 +6,7 @@ import InputHandler from './input.js';
 import { bounceFromLanding } from './bouncePad.js';
 import { ScoreSystem } from './scoring.js';
 import { PortalSystem } from './portal.js';
+import { hitsSawblade } from './sawblade.js';
 
 const STATE = { MENU: 'menu', PLAYING: 'playing', DEAD: 'dead', WIN: 'win' };
 
@@ -173,6 +174,14 @@ export class Game {
         continue;
       }
 
+      if (o.type === 'sawblade') {
+        if (hitsSawblade(this.player, o, this.level.cameraX)) {
+          this.state = STATE.DEAD;
+          return;
+        }
+        continue;
+      }
+
       if (o.type === 'spike') {
         const playerBox = {
           x: this.player.x + COLLISION.PLAYER_MARGIN,
@@ -219,6 +228,7 @@ export class Game {
     }
 
     this.scoring.update(this.player, this.level.cameraX);
+    this.level.trackPlayer(this.player, frameScale);
 
     if (this.level.complete) {
       this.state = STATE.WIN;
@@ -229,6 +239,7 @@ export class Game {
 
   _teleportToPortal(destination) {
     this.portals.teleport(this.player, this.level, destination);
+    this.level.trackPlayer(this.player, 1, true);
     this.scoring.pass(this.player.left + this.level.cameraX);
     this.jumpBufferFrames = 0;
   }
@@ -236,12 +247,15 @@ export class Game {
   _render() {
     const { renderer, player, level, state } = this;
     renderer.clear(level.theme);
-    renderer.drawParallax(level.cameraX, level.theme);
+    renderer.ctx.save();
+    renderer.ctx.translate(0, -level.cameraY);
+    renderer.drawParallax(level.cameraX, level.theme, level.cameraY);
     const visible = level.getVisible().filter(o => o.type !== 'orb' || !this.scoring.collected.has(o.sequence));
-    renderer.drawObstacles(visible, level.cameraX, level.theme);
+    renderer.drawObstacles(visible, level.cameraX, level.theme, level.elapsedFrames);
     if (state === STATE.PLAYING || state === STATE.DEAD) {
       renderer.drawPlayer(player, level.theme);
     }
+    renderer.ctx.restore();
     const pct = Math.min(100, (level.cameraX / level.length) * 100);
     if (state === STATE.PLAYING) renderer.drawUI(pct, level.name, level.theme, this.scoring);
     if (state === STATE.MENU)    renderer.drawMenu(level.name, level.theme, level.hint);

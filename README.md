@@ -14,6 +14,13 @@ It has 20 platforms across climbs and descents, 3 bounce pads, 21 orbs, and
 shorter entrances to explore the connecting platforms. Both routes can collect
 every orb without breaking the sequence. Press `L` on the menu to cycle levels.
 
+The fourth level, **Clockwork Heights**, opens with `?level=clockwork-heights`.
+Its 19 platforms use seeded variation in widths, gaps, and elevations; the same
+layout returns on every retry. Avoid 9 rotating sawblades and collect 20 orbs as
+the camera follows the climb. Land on the green pad near the end of the ascent
+to reach the **2x ACCESS** ledge, 240 pixels above its launch platform. A normal
+jump cannot reach it. A return portal brings you down for the final ground run.
+
 Validate generated level authoring rules with:
 
 ```sh
@@ -26,6 +33,7 @@ npm run check
 | Restart | Same as above after death |
 | Start Level 2 by URL | `?level=ember-ascent` |
 | Start Level 3 by URL | `?level=skyward-terraces` |
+| Start Level 4 by URL | `?level=clockwork-heights` |
 
 Hold jump input to automatically jump again on landing.
 
@@ -61,7 +69,9 @@ DashGeometry/
 │   ├── levelBuilder.js — reusable level motif helpers
 │   ├── levelRules.js   — physics-derived spacing and validation rules
 │   ├── levels/skywardTerraces.js — third-level layout and theme
+│   ├── levels/clockworkHeights.js — seeded fourth-level layout and theme
 │   ├── portal.js       — portal factories, validation, and runtime system
+│   ├── sawblade.js     — sawblade factory, collision, animation, and drawing
 │   ├── bouncePad.js    — landing-triggered boost activation
 │   ├── scoring.js      — orb definitions, collection, and score sequences
 │   ├── renderer.js     — canvas draw calls, parallax, themed portals (Claude Code)
@@ -71,6 +81,8 @@ DashGeometry/
     ├── smoke-portals.mjs — portal system and authoring checks
     ├── smoke-runtime.mjs — headless runtime regression checks
     ├── smoke-terraces.mjs — complete third-level routes at multiple frame steps
+    ├── smoke-sawblades.mjs — blade footprint, collision, animation, and validation
+    ├── smoke-clockwork.mjs — fourth-level route, camera, and bounce-only access
     └── orchestrate.sh    — ACP delegation wrapper
 ```
 
@@ -171,9 +183,46 @@ Skyward Terraces uses 80-pixel portals so players can jump over the entrances.
 Legacy `entranceLane`/`exitLane` options remain supported (0 means ground);
 explicit surface coordinates also work on the first platform lane.
 Validation rejects missing or mismatched pairs, duplicate IDs, invalid dimensions,
-unsupported exits, and nearby spikes. Exit support includes the player's full
+unsupported exits, and nearby hazards (spikes or sawblades). Exit support includes the player's full
 width after the teleport offset.
 
 `npm run check` exercises portal behavior in every level and completes both
 Skyward Terraces routes at frame scales 0.5, 1, and 2. Each route uses all three
 bounce pads and collects all 21 orbs for 3,905 points.
+
+## Sawblades and Higher Platforms
+
+`js/sawblade.js` owns the sawblade factory, defaults, circular collision check,
+validation, rotation, and drawing. Blades use the same 40x40 world-space footprint
+as triangle spikes. Their circular hitbox is inset slightly, and the existing
+player collision margin is preserved. Tooth rotation is visual: collision size
+stays constant so safe clearance does not depend on the animation frame.
+
+```js
+level.sawblade(x); // On the ground.
+level.sawblade(platform.x + 240, {
+  surfaceY: platform.y,
+  spin: -1, // Reverse rotation; defaults to 1.
+  phase: Math.PI / 4,
+});
+```
+
+Themes can override `sawblade`, `sawbladeEdge`, and `sawbladeHub`. Blade rotation
+uses per-run elapsed game frames, resets on retry, and freezes when play stops.
+Validation checks the tile footprint, support, hazard spacing, and portal exit
+clearance. Orbs and platforms retain their existing independent behavior.
+
+Platform lanes can extend above the original screen: `level.block(x, lane, widthInTiles)`
+accepts higher lane numbers and produces negative world Y coordinates as needed.
+Set `verticalCamera: true` on a level definition to follow these heights. World
+objects move with the camera while the HUD and menus remain fixed. The first
+three levels retain their original vertical view.
+
+Clockwork Heights uses `CLOCKWORK_SEED` and `buildClockworkHeights()` in its level
+module. Random choices stay within bounded width, gap, and step-height options;
+the bounce-only ledge is deliberately authored rather than randomly placed.
+Changing the seed creates a different layout and requires route testing before
+shipping it. The current seed is tested from start to finish at frame scales
+0.5, 1, and 2, collecting all 20 orbs for 4,380 points. Tests also verify that
+removing the bounce pad prevents access to the high ledge and that its 240-pixel
+rise exceeds the theoretical normal-jump maximum.

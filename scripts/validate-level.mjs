@@ -13,6 +13,7 @@ try {
 
     const blocks = level.data.filter(o => o.type === 'block').length;
     const spikes = level.data.filter(o => o.type === 'spike').length;
+    const saws = level.data.filter(o => o.type === 'sawblade').length;
     const portals = level.data.filter(o => o.type === 'portal').length;
     const pads = level.data.filter(o => o.type === 'bouncePad').length;
     const orbs = level.data.filter(o => o.type === 'orb').length;
@@ -21,7 +22,7 @@ try {
     const tiles = Math.ceil(level.length / TILE);
 
     console.log(`${level.name} (${level.id}) validated.`);
-    console.log(`Objects: ${level.data.length} total, ${blocks} blocks, ${spikes} spikes, ${portals} portals (${entrances} entrances, ${exits} exits), ${pads} bounce pads, ${orbs} orbs.`);
+    console.log(`Objects: ${level.data.length} total, ${blocks} blocks, ${spikes} spikes, ${saws} sawblades, ${portals} portals (${entrances} entrances, ${exits} exits), ${pads} bounce pads, ${orbs} orbs.`);
     console.log(`Length: ${level.length}px (${tiles} tiles).`);
     console.log(`Speed: ${level.speed}px/frame. Min spike gap: ${level.rules.minSpikeGapX}px.`);
   }

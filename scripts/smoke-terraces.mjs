@@ -61,5 +61,5 @@ for (let index = 0; index < LEVELS.length; index++) {
   assert.equal(selection.level.id, LEVELS[index].id);
   selection._cycleLevel();
 }
-assert.equal(selection.level.id, LEVELS[0].id, 'Level cycling wraps through all three levels.');
+assert.equal(selection.level.id, LEVELS[0].id, 'Level cycling wraps through the entire catalog.');
 console.log('Skyward Terraces full-run and level-selection smoke passed.');

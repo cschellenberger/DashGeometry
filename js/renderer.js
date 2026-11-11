@@ -1,5 +1,6 @@
 import { BOUNCE_PAD, TILE } from './config.js';
 import { ORB_TYPES } from './scoring.js';
+import { drawSawblade } from './sawblade.js';
 
 const BG_COLOR   = '#1a1a2e';
 const GROUND_COL = '#16213e';
@@ -32,7 +33,7 @@ export class Renderer {
     ctx.fillRect(0, 0, 800, 600);
   }
 
-  drawParallax(cameraX, theme = {}) {
+  drawParallax(cameraX, theme = {}, cameraY = 0) {
     const { ctx } = this;
     // Layer 1 — slow distant lines
     ctx.strokeStyle = theme.parallaxSlow ?? theme.parallaxFar ?? GROUND_COL;
@@ -40,8 +41,8 @@ export class Renderer {
     const off1 = (cameraX * 0.3) % 80;
     for (let x = -off1; x < 800; x += 80) {
       ctx.beginPath();
-      ctx.moveTo(x, 0);
-      ctx.lineTo(x, 560);
+      ctx.moveTo(x, cameraY);
+      ctx.lineTo(x, cameraY + 600);
       ctx.stroke();
     }
     // Layer 2 — slightly faster
@@ -49,13 +50,13 @@ export class Renderer {
     const off2 = (cameraX * 0.6) % 120;
     for (let x = -off2; x < 800; x += 120) {
       ctx.beginPath();
-      ctx.moveTo(x, 0);
-      ctx.lineTo(x + 30, 560);
+      ctx.moveTo(x, cameraY);
+      ctx.lineTo(x + 30, cameraY + 600);
       ctx.stroke();
     }
   }
 
-  drawObstacles(obstacles, cameraX, theme = {}) {
+  drawObstacles(obstacles, cameraX, theme = {}, elapsedFrames = 0) {
     const { ctx } = this;
     for (const o of obstacles) {
       const sx = o.x - cameraX;
@@ -68,6 +69,15 @@ export class Renderer {
         ctx.strokeStyle = theme.blockEdge ?? BLOCK_EDGE;
         ctx.lineWidth = 2;
         ctx.strokeRect(sx + 1, o.y + 1, o.w - 2, o.h - 2);
+        if (o.requiresBounce) {
+          ctx.save();
+          ctx.fillStyle = theme.bouncePad ?? BOUNCE_PAD.COLOR;
+          ctx.fillRect(sx, o.y, o.w, 4);
+          ctx.font = 'bold 12px monospace';
+          ctx.textAlign = 'left';
+          ctx.fillText('2x ACCESS', sx + 12, o.y - 10);
+          ctx.restore();
+        }
       } else if (o.type === 'spike') {
         ctx.fillStyle = theme.spike ?? SPIKE_COL;
         ctx.strokeStyle = theme.spikeEdge ?? SPIKE_EDGE;
@@ -79,6 +89,8 @@ export class Renderer {
         ctx.closePath();
         ctx.fill();
         ctx.stroke();
+      } else if (o.type === 'sawblade') {
+        drawSawblade(ctx, o, cameraX, elapsedFrames, theme);
       } else if (o.type === 'orb') {
         this.drawOrb(o, cameraX);
       } else if (o.type === 'portal') {
@@ -210,7 +222,7 @@ export class Renderer {
     ctx.fillText(levelName, 400, 328);
     ctx.font = '14px monospace';
     ctx.fillStyle = theme.muted ?? '#95a5a6';
-    ctx.fillText('Avoid spikes. Reach the end.', 400, 370);
+    ctx.fillText('Avoid hazards. Reach the end.', 400, 370);
     ctx.fillText('Press L to switch levels.', 400, 398);
     ctx.fillText('Jump for orbs: cyan 10 / gold 25 / pink 50', 400, 434);
     ctx.fillText('Collect in order: x1, x2, x3... Miss one to reset.', 400, 458);

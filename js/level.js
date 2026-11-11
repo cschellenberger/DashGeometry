@@ -2,6 +2,8 @@ import { DEFAULT_LEVEL_THEME, EMBER_ASCENT_THEME, PLAYER_PHYSICS, TILE } from '.
 import { LevelBuilder } from './levelBuilder.js';
 import { createLevelRules, LEVEL_RULES } from './levelRules.js';
 import { SKYWARD_TERRACES } from './levels/skywardTerraces.js';
+import { CLOCKWORK_HEIGHTS } from './levels/clockworkHeights.js';
+export { CLOCKWORK_HEIGHTS_LEVEL_ID } from './levels/clockworkHeights.js';
 export { SKYWARD_TERRACES_LEVEL_ID } from './levels/skywardTerraces.js';
 
 export { LEVEL_RULES };
@@ -35,7 +37,7 @@ const EMBER_THEME = {
   danger: EMBER_ASCENT_THEME.spike,
 };
 
-// Each entry: { type: 'ground'|'block'|'spike'|'portal'|'bouncePad'|'orb', x, y, w?, h? }
+// Each entry: { type: 'ground'|'block'|'spike'|'sawblade'|'portal'|'bouncePad'|'orb', x, y, w?, h? }
 function createLevelOne(rules) {
   const level = new LevelBuilder();
 
@@ -159,7 +161,7 @@ function createEmberAscent(rules) {
   return level.build({ rules });
 }
 
-function createLevelDefinition({ id, name, hint, speed, theme, rules, build }) {
+function createLevelDefinition({ id, name, hint, speed, theme, rules, build, verticalCamera = false }) {
   const resolvedRules = createLevelRules({ ...rules, speedX: speed });
   const built = build(resolvedRules);
 
@@ -167,6 +169,7 @@ function createLevelDefinition({ id, name, hint, speed, theme, rules, build }) {
     id,
     name,
     hint,
+    verticalCamera,
     speed,
     theme,
     data: built.data,
@@ -199,6 +202,7 @@ export const LEVELS = [
     build: createEmberAscent,
   }),
   createLevelDefinition(SKYWARD_TERRACES),
+  createLevelDefinition(CLOCKWORK_HEIGHTS),
 ];
 
 export const LEVEL_DEFINITIONS = LEVELS;
@@ -228,6 +232,8 @@ export class Level {
     this.length = this.definition.length;
     this.rules = this.definition.rules;
     this.cameraX = 0;
+    this.cameraY = 0;
+    this.elapsedFrames = 0;
   }
 
   getVisible() {
@@ -239,6 +245,16 @@ export class Level {
 
   update(frameScale = 1) {
     this.cameraX += this.speed * frameScale;
+    this.elapsedFrames += frameScale;
+  }
+
+  trackPlayer(player, frameScale = 1, snap = false) {
+    if (!this.definition.verticalCamera) return;
+    let target = this.cameraY;
+    if (player.top < this.cameraY + 180) target = player.top - 180;
+    else if (player.bottom > this.cameraY + 480) target = player.bottom - 480;
+    target = Math.min(0, target);
+    this.cameraY += (target - this.cameraY) * (snap ? 1 : 1 - Math.pow(0.8, frameScale));
   }
 
   get complete() {

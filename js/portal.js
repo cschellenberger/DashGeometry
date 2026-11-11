@@ -65,7 +65,7 @@ export class PortalSystem {
   }
 }
 
-export function validatePortals(portals, blocks, spikes, rules) {
+export function validatePortals(portals, blocks, hazards, rules) {
   const portalIds = new Map();
   const validRoles = new Set(['entrance', 'exit']);
 
@@ -122,13 +122,13 @@ export function validatePortals(portals, blocks, spikes, rules) {
       throw new Error(`Portal "${portal.id}" is not fully supported.`);
     }
 
-    const overlappingSpike = spikes.find(spike =>
-      rangesOverlap(portal.x, portal.x + portal.w, spike.x, spike.x + TILE) &&
-      rangesOverlap(portal.y, portal.y + portal.h, spike.y, spike.y + TILE)
+    const overlappingHazard = hazards.find(hazard =>
+      rangesOverlap(portal.x, portal.x + portal.w, hazard.x, hazard.x + TILE) &&
+      rangesOverlap(portal.y, portal.y + portal.h, hazard.y, hazard.y + TILE)
     );
 
-    if (overlappingSpike) {
-      throw new Error(`Portal "${portal.id}" overlaps a spike at x=${overlappingSpike.x}.`);
+    if (overlappingHazard) {
+      throw new Error(`Portal "${portal.id}" overlaps a hazard at x=${overlappingHazard.x}.`);
     }
 
     if (portal.role === 'exit') {
@@ -136,21 +136,21 @@ export function validatePortals(portals, blocks, spikes, rules) {
       if (entrances.length !== 1) {
         throw new Error(`Portal exit "${portal.id}" needs exactly one paired entrance.`);
       }
-      validatePortalExitClearance(portal, spikes, rules);
+      validatePortalExitClearance(portal, hazards, rules);
     }
   }
 }
 
-function validatePortalExitClearance(portal, spikes, rules) {
+function validatePortalExitClearance(portal, hazards, rules) {
   const clearancePx = rules.portalExitClearanceTiles * TILE;
-  const nextSpike = spikes.find(spike =>
-    spike.x >= portal.x &&
-    spike.x - portal.x < clearancePx
+  const nextHazard = hazards.find(hazard =>
+    hazard.x >= portal.x &&
+    hazard.x - portal.x < clearancePx
   );
 
-  if (nextSpike) {
+  if (nextHazard) {
     throw new Error(
-      `Portal exit "${portal.id}" has only ${nextSpike.x - portal.x}px before spike at x=${nextSpike.x}.`
+      `Portal exit "${portal.id}" has only ${nextHazard.x - portal.x}px before hazard at x=${nextHazard.x}.`
     );
   }
 }

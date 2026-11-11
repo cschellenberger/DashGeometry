@@ -80,5 +80,5 @@ unsupported.portalPair({ entranceX: 400, exitX: 800, exitLane: 2 });
 assert.throws(() => unsupported.build(), /not fully supported/, 'An exit must support the full player after its placement offset.');
 const spike = pairedBuilder();
 spike.builder.spike(820);
-assert.throws(() => spike.builder.build(), /overlaps a spike|only .*before spike/);
+assert.throws(() => spike.builder.build(), /overlaps a hazard|only .*before hazard/);
 console.log('Portal module checks passed for all levels, pairing, cooldowns, locks, and safe exits.');

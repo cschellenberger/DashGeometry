@@ -1,6 +1,7 @@
 import { PLAYER_PHYSICS, TILE, WORLD } from './config.js';
 import { validateOrbs } from './scoring.js';
 import { validatePortals } from './portal.js';
+import { validateSawblades } from './sawblade.js';
 
 const FIRST_LEVEL_COMFORT_RATIO = 0.65;
 
@@ -72,11 +73,20 @@ export function validateLevelData(levelData, options = {}) {
   const blocks = levelData.filter(o => o.type === 'block');
   const portals = levelData.filter(o => o.type === 'portal');
   const bouncePads = levelData.filter(o => o.type === 'bouncePad');
+  const saws = levelData.filter(o => o.type === 'sawblade');
+  const hazards = [...spikes, ...saws];
 
+  validateSawblades(saws, levelData.filter(o => o.type === 'ground' || o.type === 'block'));
   validateBouncePads(bouncePads, levelData.filter(o => o.type === 'ground' || o.type === 'block'));
   validateBlockOverlaps(blocks);
   validateJumpableBlockGaps(blocks, rules);
-  validatePortals(portals, blocks, spikes, rules);
+  validatePortals(portals, blocks, hazards, rules);
+
+  for (const saw of saws) {
+    if (hazards.some(other => other !== saw && other.y === saw.y && Math.abs(other.x - saw.x) < rules.minSpikeGapX)) {
+      throw new Error(`Sawblade at x=${saw.x} is too close to another hazard.`);
+    }
+  }
 
   for (const spike of spikes) {
     const sameLaneSpike = spikes.find(other =>

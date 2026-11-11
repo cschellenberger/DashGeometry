@@ -2,6 +2,7 @@ import { BOUNCE_PAD, TILE, WORLD } from './config.js';
 import { calculateLevelLength, laneY, LEVEL_RULES, validateLevelData } from './levelRules.js';
 import { ORB_SIZE } from './scoring.js';
 import { createPortal, createPortalPair } from './portal.js';
+import { createSawblade } from './sawblade.js';
 
 export class LevelBuilder {
   constructor() {
@@ -39,6 +40,12 @@ export class LevelBuilder {
     const orb = { type: 'orb', x, y, w: ORB_SIZE, h: ORB_SIZE, kind };
     this.objects.push(orb);
     return orb;
+  }
+
+  sawblade(x, options = {}) {
+    const saw = createSawblade(x, options.surfaceY ?? WORLD.GROUND_Y, options);
+    this.objects.push(saw);
+    return saw;
   }
 
   spikeOnBlock(block, offsetTiles = 1) {
